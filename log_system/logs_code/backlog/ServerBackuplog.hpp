@@ -117,7 +117,7 @@ public:
         {
             buf[r_ret] = 0;
             std::string tmp = buf;
-            func_(client_info + tmp);
+            func_(client_info + tmp); // 客户端ip+端口+发送的信息
         }
     }
 
