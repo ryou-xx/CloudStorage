@@ -2,6 +2,7 @@
 #include "Level.hpp"
 #include "LogFlush.hpp"
 #include "Message.hpp"
+#include <cassert>
 #include <memory>
 
 namespace mylog{
