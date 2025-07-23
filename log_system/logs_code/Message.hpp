@@ -1,10 +1,11 @@
 #pragma once
 #include <string>
+#include <thread>
 #include "Level.hpp"
 #include <ctime>
 
 namespace mylog{
-    class Formatter{
+    class LogMessage{
     public:
         // 返回"[当前时间] + [日志级别] + messsage"的字符串
         std::string format(LogLevel level, const std::string &message)
@@ -25,5 +26,13 @@ namespace mylog{
 
             return "[" + time_str + "] [" + level_str + "] " + message;
         }
-    }; // Formatter
+    public:
+        size_t line_;       // 行号
+        time_t ctime_;
+        std::string file_name_;
+        std::string name_;
+        std::string payload_;
+        std::thread::id tid_;
+        LogLevel::value level_;
+    };
 } // mylog
