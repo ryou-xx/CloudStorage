@@ -7,32 +7,36 @@
 namespace mylog{
     class LogMessage{
     public:
+        using ptr = std::shared_ptr<LogMessage>;
+        LogMessage() = default;
+        LogMessage(LogLevel::value level, std::string file, size_t line,
+                std::string name, std::string payload)
+        : name_(name), file_name_(file), line_(line), payload_(payload),
+            ctime_(Util::Date::Now()), tid_(std::this_thread::get_id()){}
+        
         // 返回"[当前时间] + [日志级别] + messsage"的字符串
         std::string format(LogLevel level, const std::string &message)
         {
-            std::time_t now = std::time(nullptr); // 返回当前时间
-            std::string time_str = std::ctime(&now); // 将秒数转换为世界时间字符串
-            time_str.pop_back(); // 去掉换行符
+            std::stringstream ret;
+            struct tm t;
+            localtime_r(&ctime_, &t);
+            char buf[128];
+            strftime(buf, sizeof(buf), "%H:%M:%s",&t);
+            std::string tmp1 = "[" + std::string(buf) + "][";
+            std::string tmp2 = "][" + std::string(LogLevel::ToString(level_)) + "]["
+                                + name_ + "][" + file_name_ + ": " + std::to_string(line_)
+                                + "]\t" + payload_ + "\n";
 
-            std::string level_str;
-            switch(level)
-            {
-                case LogLevel::DEBUG: level_str = "DEBUG"; break;
-                case LogLevel::INFO: level_str = "INFO"; break;
-                case LogLevel::WARN: level_str = "WARN"; break;
-                case LogLevel::ERROR: level_str = "ERROR"; break;
-                case LogLevel::FATAL: level_str = "FATAL"; break;
-            }
-
-            return "[" + time_str + "] [" + level_str + "] " + message;
+            ret << tmp1 << tid_ << tmp2;
+            return ret.str(); 
         }
     public:
-        size_t line_;       // 行号
-        time_t ctime_;
-        std::string file_name_;
-        std::string name_;
-        std::string payload_;
-        std::thread::id tid_;
-        LogLevel::value level_;
+        size_t line_;               // 行号
+        time_t ctime_;              // 时间
+        std::string file_name_;     // 文件名
+        std::string name_;          // 日志器名
+        std::string payload_;       // 信息体
+        std::thread::id tid_;       // 线程id
+        LogLevel::value level_;     // 等级
     };
 } // mylog
