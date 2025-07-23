@@ -2,6 +2,8 @@
 #include "Level.hpp"
 #include "LogFlush.hpp"
 #include "Message.hpp"
+#include "backlog/CliBackupLog.hpp"
+
 #include <cassert>
 #include <memory>
 
