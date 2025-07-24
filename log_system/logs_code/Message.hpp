@@ -14,7 +14,7 @@ namespace mylog{
         : name_(name), file_name_(file), line_(line), payload_(payload),
             ctime_(Util::Date::Now()), tid_(std::this_thread::get_id()){}
         
-        std::string format(LogLevel level, const std::string &message)
+        std::string format()
         {
             std::stringstream ret;
             struct tm t;
