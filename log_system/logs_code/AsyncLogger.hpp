@@ -3,58 +3,21 @@
 #include "LogFlush.hpp"
 #include "Message.hpp"
 #include "backlog/CliBackupLog.hpp"
-
+#include "ThreadPoll.hpp"
 #include <cassert>
 #include <memory>
+
+extern ThreadPoll *tp;
 
 namespace mylog{
     class AsyncLogger{
     public:
-        AsyncLogger(LogLevel level) : level_(level), formatter_(std::make_unique<Formatter>())
-        {
-            console_Flush_ = std::make_unique<ConsoleFlush>();
-            file_Flush_ = std::make_unique<FileFlush>("app.log");
-        }
-
-        // 将日志输出到终端和日志文件
-        void log(LogLevel level, const std::string& message)
-        {
-            if (level >= level_)
-            {
-                std::string formatted_log = formatter_->format(level, message);
-                console_Flush_->flush(formatted_log);
-                file_Flush_->flush(formatted_log);
-            }
-        }
-
-        void debug(const std::string& message)
-        {
-            log(LogLevel::DEBUG, message);
-        }
-
-        void info(const std::string& message)
-        {
-            log(LogLevel::INFO, message);
-        }
-        
-        void warn(const std::string& message)
-        {
-            log(LogLevel::WARN, message);
-        }
-
-        void error(const std::string& message)
-        {
-            log(LogLevel::ERROR, message);
-        }
-
-        void fatal(const std::string& message)
-        {
-            log(LogLevel::FATAL, message);
-        }
-    private:
-        LogLevel level_; // 需要记录的日志的最低等级
-        std::unique_ptr<Formatter> formatter_;
-        std::unique_ptr<Flush> console_Flush_;
-        std::unique_ptr<Flush> file_Flush_;
+        using ptr = std::shared_ptr<AsyncLogger>;
+        AsyncLogger(const std::string &logger_name, std::vector<LogFlush::ptr>&flushs,){}
+    protected:
+        std::mutex mtx_;
+        std::string logger_name_;
+        std::vector<LogFlush::ptr> flushs_;
+        mylog::AsyncWorker::ptr asyncworker;
     };// AsyncLogger
 }// mylog

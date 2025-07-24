@@ -14,7 +14,6 @@ namespace mylog{
         : name_(name), file_name_(file), line_(line), payload_(payload),
             ctime_(Util::Date::Now()), tid_(std::this_thread::get_id()){}
         
-        // 返回"[当前时间] + [日志级别] + messsage"的字符串
         std::string format(LogLevel level, const std::string &message)
         {
             std::stringstream ret;

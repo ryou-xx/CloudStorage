@@ -56,5 +56,6 @@
         "stop_token": "cpp",
         "thread": "cpp",
         "future": "cpp"
-    }
+    },
+    "search.followSymlinks": false
 }
