@@ -140,40 +140,40 @@ namespace mylog{
             }
         }
 
-protected:
-        std::mutex mtx_;
-        std::string logger_name_;
-        std::vector<LogFlush::ptr> flushs_; // 存放所有LogFlush的实例指针
-        mylog::AsyncWorker::ptr asyncworker;
-    };// AsyncLogger
+    protected:
+            std::mutex mtx_;
+            std::string logger_name_;
+            std::vector<LogFlush::ptr> flushs_; // 存放所有LogFlush的实例指针
+            mylog::AsyncWorker::ptr asyncworker;
+        };// AsyncLogger
 
-// 用于创建AsyncLogger的工厂
-class LoggerBuilder{
-public:
-    using ptr = std::shared_ptr<LoggerBuilder>;
-    void BuildLoggerName(const std::string &name) {logger_name_ = name;}
-    void BuildLoggerType(AsyncType type) {async_type_ = type;}
+    // 用于创建AsyncLogger的工厂
+    class LoggerBuilder{
+    public:
+        using ptr = std::shared_ptr<LoggerBuilder>;
+        void BuildLoggerName(const std::string &name) {logger_name_ = name;}
+        void BuildLoggerType(AsyncType type) {async_type_ = type;}
 
-    // 各个类型的Flush的构造函数参数列表不同，所以这里要用模板的FlushType指定指针的类型
-    template <typename FlushType, typename... Args>
-    void BuildLoggerFlush(Args &&...args)
-    {
-        flushs_.emplace_back(LogFlushFactory::CreateLog<FlushType>(std::forward<Args>(args)...));
-    }
-    // 感觉少了一个清空flushs_的成员函数
+        // 各个类型的Flush的构造函数参数列表不同，所以这里要用模板的FlushType指定指针的类型
+        template <typename FlushType, typename... Args>
+        void BuildLoggerFlush(Args &&...args)
+        {
+            flushs_.emplace_back(LogFlushFactory::CreateLog<FlushType>(std::forward<Args>(args)...));
+        }
+        // 感觉少了一个清空flushs_的成员函数
 
-    AsyncLogger::ptr Build()
-    {
-        assert(logger_name_.empty() == false); // 必须有日志器名称
+        AsyncLogger::ptr Build()
+        {
+            assert(logger_name_.empty() == false); // 必须有日志器名称
 
-        // 如果没有指定LogFlush，则默认使用标准输出Flush
-        if (flushs_.empty())
-            flushs_.emplace_back(std::make_shared<StdoutFlush>());
-        return std::make_shared<AsyncLogger>(logger_name_, flushs_, async_type_);
-    }
-protected:
-    std::string logger_name_ = "async_logger";
-    std::vector<mylog::LogFlush::ptr> flushs_;
-    AsyncType async_type_ = AsyncType::ASYNC_SAFE;
-};
+            // 如果没有指定LogFlush，则默认使用标准输出Flush
+            if (flushs_.empty())
+                flushs_.emplace_back(std::make_shared<StdoutFlush>());
+            return std::make_shared<AsyncLogger>(logger_name_, flushs_, async_type_);
+        }
+    protected:
+        std::string logger_name_ = "async_logger";
+        std::vector<mylog::LogFlush::ptr> flushs_;
+        AsyncType async_type_ = AsyncType::ASYNC_SAFE;
+    };
 }// mylog
