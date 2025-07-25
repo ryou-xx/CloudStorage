@@ -3,12 +3,12 @@
 #include "AsyncLogger.hpp"
 
 namespace mylog{
-    class LoggerManeger{
+    class LoggerManager{
     public:
         // 确保只有一个Manager
-        static LoggerManeger &GetInstance()
+        static LoggerManager &GetInstance()
         {
-            static LoggerManeger eton;
+            static LoggerManager eton;
             return eton;
         }
     
@@ -41,7 +41,7 @@ namespace mylog{
 
     private:
         // 新建一个Manager并初始化一个默认日志器
-        LoggerManeger()
+        LoggerManager()
         {
             std::unique_ptr<LoggerBuilder> builder(new LoggerBuilder());
             builder->BuildLoggerName("default");

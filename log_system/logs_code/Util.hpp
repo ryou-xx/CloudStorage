@@ -36,7 +36,7 @@ namespace mylog{
             {
                 if (pathname.empty()) perror("文件所给路径为空：");
 
-                if (Exists(pathname))
+                if (!Exists(pathname))
                 {
                     size_t pos, index = 0;
                     size_t size = pathname.size();
@@ -102,8 +102,8 @@ namespace mylog{
                 ifs.read(&(*content)[0], len); // 将最大为指定数量字节的文件内容读取到content中。
                 if (!ifs.good())
                 {
-                    std::cout << __FILE__ << __LINE__ << "-"
-                              << "read file content error" << std::endl;
+                    std::cerr << __FILE__ << " " << __LINE__ << " -"
+                              << " read file content error" << std::endl;
                     ifs.close();
                     return false;
                 }
@@ -123,7 +123,7 @@ namespace mylog{
                 std::stringstream ss;
                 if (usw->write(val, &ss) != 0)
                 {
-                    std::cout << "serialize error" << std::endl;
+                    std::cerr << "serialize error" << std::endl;
                     return false;
                 }
                 *str = ss.str();
@@ -138,7 +138,7 @@ namespace mylog{
                 std::string err;
                 if (ucr->parse(str.c_str(), str.c_str() + str.size(), val, &err) == false)
                 {
-                    std::cout << __FILE__ << __LINE__ << "parse error " << err << std::endl;
+                    std::cerr << __FILE__ << " " << __LINE__ << " parse error " << err << std::endl;
                     return false;
                 }
                 return true; // 源码好像有错误？
@@ -157,7 +157,7 @@ namespace mylog{
             size_t buffer_size; // 缓冲区基础容量
             size_t threadhold; // 倍数扩容阈值
             size_t linear_growth; // 线性增长容量
-            size_t flush_log; // 控制日志同步到磁盘的时机，默认为0, 1调用fflush, 2调用fsync
+            size_t flush_log; // 控制日志同步到磁盘的时机, 1调用fflush, 2调用fsync
             std::string backup_addr;
             uint16_t backup_port;
             size_t thread_count;
@@ -166,9 +166,9 @@ namespace mylog{
             {
                 std::string content;
                 mylog::Util::File file;
-                if (file.GetContent(&content, "../../log_system/logs_code/config.cof") == false)
+                if (file.GetContent(&content, "./config.conf") == false)
                 {
-                    std::cout << __FILE__ << __LINE__ << "open config,conf failed" << std::endl;
+                    std::cerr << __FILE__ << " " << __LINE__ << " open config.conf failed: ";
                     perror(nullptr);
                 }
                 Json::Value root;
@@ -177,8 +177,8 @@ namespace mylog{
                 threadhold = root["threadhold"].asInt64();
                 linear_growth = root["linear_growth"].asInt64();
                 flush_log = root["flush_log"].asInt64();
-                backup_addr = root["buckup_addr"].asString();
-                backup_port = root["buckup_port"].asInt();
+                backup_addr = root["backup_addr"].asString();
+                backup_port = root["backup_port"].asInt();
                 thread_count = root["thread_count"].asInt();
             }
         };// class JsonData

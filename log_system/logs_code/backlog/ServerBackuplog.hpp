@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <functional>
 #include <cstdlib>
+#include <ctime>
 
 using std::cout;
 using std::endl;
@@ -87,16 +88,19 @@ public:
         {
             sockaddr_in client_addr;
             socklen_t client_addrlen = sizeof(sockaddr_in);
+            std::cout << "waitting for client connection request..." << std::endl;
             int connfd = accept(listen_sock_, (sockaddr*)&client_addr, &client_addrlen);
             if (connfd == -1)
             {
                 cout << __FILE__ << __LINE__ << "accept error" << strerror(errno) << endl;
                 continue;
             }
-
+            
             std::string client_ip = inet_ntoa(client_addr.sin_addr);
             uint16_t client_port = ntohs(client_addr.sin_port);
-
+            std::cout << "A connection has been established with the server" << std::endl;
+            std::cout << "IP : " << client_ip << std::endl;
+            std::cout << "PORT : " << client_port << std::endl;
             pthread_t tid;
             ThreadData *td = new ThreadData(connfd, client_ip, client_port, this);
             pthread_create(&tid, nullptr, threadRoutine, td);

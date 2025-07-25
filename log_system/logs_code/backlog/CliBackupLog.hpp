@@ -15,8 +15,7 @@ void start_backup(const std::string &message)
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0)
     {
-        std::cout << __FILE__ << __LINE__ << "socket error: " << strerror(errno) << std::endl;
-        perror(NULL);
+        std::cerr << __FILE__ << " " << __LINE__ << " socket error: " << strerror(errno) << std::endl;
     }
 
     sockaddr_in serv;
@@ -29,10 +28,10 @@ void start_backup(const std::string &message)
     while (-1 == connect(sock, (sockaddr*)&serv, sizeof(serv)))
     {
         std::cout << "正在尝试重新连接，重连次数还有：" << cnt << std::endl;
-        if (cnt <= 0)
+        if (cnt-- <= 0)
         {
-            std::cout << __FILE__ << __LINE__ << "connect error: " << strerror(errno) << std::endl;
-            perror(NULL);
+            std::cerr << __FILE__ << " " << __LINE__ << " connect error: " << strerror(errno) << std::endl;
+
             return;
         }
     }
@@ -40,8 +39,7 @@ void start_backup(const std::string &message)
     char buf[1024];
     if (-1 == write(sock, message.c_str(), message.size()))
     {
-        std::cout << __FILE__ << __LINE__ << "send to server error: " << strerror(errno) << std::endl;
-        perror(nullptr); 
+        std::cerr << __FILE__ << " " << __LINE__ << " send to server error: " << strerror(errno) << std::endl;
     }
     close(sock);
 }

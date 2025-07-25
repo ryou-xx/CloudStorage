@@ -11,7 +11,7 @@ namespace mylog{
         LogMessage() = default;
         LogMessage(LogLevel::value level, std::string file, size_t line,
                 std::string name, std::string payload)
-        : name_(name), file_name_(file), line_(line), payload_(payload),
+        : level_(level), name_(name), file_name_(file), line_(line), payload_(payload),
             ctime_(Util::Date::Now()), tid_(std::this_thread::get_id()){}
         
         std::string format()
@@ -20,7 +20,7 @@ namespace mylog{
             struct tm t;
             localtime_r(&ctime_, &t);
             char buf[128];
-            strftime(buf, sizeof(buf), "%H:%M:%s",&t);
+            strftime(buf, sizeof(buf), "%H:%M:%S",&t);
             std::string tmp1 = "[" + std::string(buf) + "][";
             std::string tmp2 = "][" + std::string(LogLevel::ToString(level_)) + "]["
                                 + name_ + "][" + file_name_ + ": " + std::to_string(line_)

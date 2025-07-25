@@ -31,13 +31,13 @@ namespace mylog{
     class FileFlush : public LogFlush{
     public:
         using ptr = std::shared_ptr<FileFlush>;
-        FileFlush(const std::string& filename) : filename_(filename, std::ios::app)
+        FileFlush(const std::string& filename) : filename_(filename)
         {
             Util::File::CreateDirectory(Util::File::Path(filename)); // 如果指定文件路径不存在会先创建文件路径
             fs_ = fopen(filename_.c_str(), "ab");
             if (fs_ == nullptr)
             {
-                std::cerr << __FILE__ << __LINE__ << "open log file failed: " << std::endl;
+                std::cerr << __FILE__ << " " <<  __LINE__ << " open log file failed: ";
                 perror(nullptr);
             }
         }
@@ -47,14 +47,14 @@ namespace mylog{
             fwrite(data, 1, len, fs_);
             if (ferror(fs_))
             {
-                std::cerr << __FILE__ << __LINE__ << "write log file failed: " << std::endl;
+                std::cerr << __FILE__ << " " << __LINE__ << " write log file failed: ";
                 perror(nullptr);
             }
             if (g_conf_data->flush_log == 1)
             {
                 if (fflush(fs_) == EOF)
                 {
-                    std::cerr << __FILE__ << __LINE__ << "fflush file failed" << std::endl;
+                    std::cerr << __FILE__ << " " << __LINE__ << " fflush file failed: ";
                     perror(nullptr);
                 }
             }
@@ -81,6 +81,27 @@ namespace mylog{
         void Flush(const char *data, size_t len) override
         {
             InitLogFile();
+
+            fwrite(data, 1, len, fs_);
+            if (ferror(fs_))
+            {
+                std::cerr << __FILE__ << " " << __LINE__ << " write log file failed: ";
+                perror(nullptr);
+            }
+            cur_size_ += len;
+            if(fflush(fs_) == EOF)
+            {
+                std::cerr << __FILE__ << " " << __LINE__ << " fflush error: ";
+                perror(nullptr);
+            }
+            if (g_conf_data->flush_log == 2)
+            {
+                if (fsync(fileno(fs_)) != 0)
+                {
+                    std::cerr << __FILE__ << " " << __LINE__ << " fsync error: ";
+                    perror(nullptr);
+                }
+            }
         }
     
     private:
@@ -97,7 +118,7 @@ namespace mylog{
                 fs_=fopen(filename.c_str(), "ab");
                 if (fs_ == nullptr)
                 {
-                    std::cerr << __FILE__ << __LINE__ << "open file failed" << std::endl;
+                    std::cerr << __FILE__ << " " <<__LINE__ << " open file failed: ";
                     perror(nullptr);
                 }
                 cur_size_ = 0;
@@ -110,7 +131,7 @@ namespace mylog{
             struct tm t;
             localtime_r(&time_, &t);
             std::string filename = basename_;
-            filename += std::to_string(t.tm_year + 1900);
+            filename += "_" + std::to_string(t.tm_year + 1900);
             filename += std::to_string(t.tm_mon + 1);
             filename += std::to_string(t.tm_mday);
             filename += std::to_string(t.tm_hour);

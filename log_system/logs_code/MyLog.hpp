@@ -4,12 +4,12 @@
 namespace mylog{
 AsyncLogger::ptr GetLogger(const std::string &name)
 {
-    return LoggerManeger::GetInstance().GetLogger(name);
+    return LoggerManager::GetInstance().GetLogger(name);
 }
 
 AsyncLogger::ptr DefaultLogger()
 {
-    return LoggerManeger::GetInstance().DefaultLogger();
+    return LoggerManager::GetInstance().DefaultLogger();
 }
 
 // 简化函数使用，在使用时需要指定日志器

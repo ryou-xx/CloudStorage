@@ -1,5 +1,0 @@
-[Sat Jul 19 18:13:37 2025] [INFO] This is a info message
-[Sat Jul 19 18:13:37 2025] [WARN] This is a warn message
-[Sat Jul 19 18:13:37 2025] [ERROR] This is a error message
-[Sat Jul 19 18:13:37 2025] [FATAL] This is a fatal message
-[Sat Jul 19 18:13:37 2025] [INFO] This is a log func test message

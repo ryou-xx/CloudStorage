@@ -17,6 +17,7 @@ using functior = std::function<void(Buffer&)>;
 class AsyncWorker{
 public:
     using ptr = std::shared_ptr<AsyncWorker>;
+    // 这里是独立创建了线程，并没有用到线程池
     AsyncWorker(const functior & cb, AsyncType async_type = AsyncType::ASYNC_SAFE)
         : async_type_(async_type), callback_(cb), stop_(false), thread_(std::thread(&AsyncWorker::ThreadEntry, this))
     {}

@@ -9,9 +9,9 @@
 #include <functional>
 #include <stdexcept>
 
-class ThreadPoll{
+class ThreadPool{
 public:
-    ThreadPoll(size_t threads) : stop(false)
+    ThreadPool(size_t threads) : stop(false)
     {
         for (size_t i = 0; i < threads; i++)
         {
@@ -61,7 +61,7 @@ public:
             return res; //返回task绑定的future实例，用于异步获取task结果
     }
 
-    ~ThreadPoll()
+    ~ThreadPool()
     {
         {
             std::unique_lock<std::mutex> lock(queue_mutex);
@@ -76,4 +76,4 @@ private:
     std::mutex queue_mutex;                     // 任务队列和stop互斥锁
     std::condition_variable condition;          // 用于任务队列同步
     bool stop;
-}; // class ThreadPoll
+}; // class ThreadPool

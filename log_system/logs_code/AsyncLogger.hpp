@@ -3,14 +3,14 @@
 #include "LogFlush.hpp"
 #include "Message.hpp"
 #include "backlog/CliBackupLog.hpp"
-#include "ThreadPoll.hpp"
+#include "ThreadPool.hpp"
 #include "AsyncWorker.hpp"
 #include <cassert>
 #include <memory>
 #include <atomic>
 #include <cstdarg>
 
-extern ThreadPoll *tp;
+extern ThreadPool *tp;
 
 namespace mylog{
     class AsyncLogger{
@@ -117,10 +117,10 @@ namespace mylog{
                 }
                 catch(const std::runtime_error& e) // 捕获线程任务可能抛出的异常, 即在创建任务的过程中线程池关闭了
                 {
-                    std::cerr << __FILE__ << __LINE__ << "thread pool closed" << std::endl;
+                    std::cerr << __FILE__ << " " << __LINE__ << " thread pool closed" << std::endl;
                 }
-                Flush(data.c_str(), data.size()); // 将数据输出到缓冲区
             }
+            Flush(data.c_str(), data.size()); // 将数据输出到缓冲区
         }
 
         void Flush(const char* data, size_t len)
