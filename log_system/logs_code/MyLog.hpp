@@ -13,7 +13,7 @@ AsyncLogger::ptr DefaultLogger()
 }
 
 // 简化函数使用，在使用时需要指定日志器
-#define Debug(fmt, ...) Debug(__FILE__, __LINE__, fmt, ##__VA__ARGS__)
+#define Debug(fmt, ...) Debug(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define Info(fmt, ...) Info(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define Warn(fmt, ...) Warn(__FILE__, __LINE__, fmt, ##__VA_ARGS__)
 #define Error(fmt, ...) Error(__FILE__, __LINE__, fmt, ##__VA_ARGS__)

@@ -55,7 +55,7 @@ public:
                 // 异常机制
                 if (stop) throw std::runtime_error("enqueue on stopped ThreadPool");
 
-                task.emplace([task](){(*task)();});
+                tasks.emplace([task](){(*task)();});
             }
             condition.notify_one();
             return res; //返回task绑定的future实例，用于异步获取task结果

@@ -43,7 +43,7 @@ namespace mylog{
             ret = nullptr;
         }
 
-        void INFO(const std::string &file, size_t line, const std::string format, ...)
+        void Info(const std::string &file, size_t line, const std::string format, ...)
         {
             va_list va; // 获取可变参数列表中的格式
             va_start(va, format); // 获取format之后的参数列表
@@ -58,7 +58,7 @@ namespace mylog{
             ret = nullptr;
         }
 
-        void WARN(const std::string &file, size_t line, const std::string format, ...)
+        void Warn(const std::string &file, size_t line, const std::string format, ...)
         {
             va_list va; // 获取可变参数列表中的格式
             va_start(va, format); // 获取format之后的参数列表
@@ -73,7 +73,7 @@ namespace mylog{
             ret = nullptr;
         }
 
-        void ERROR(const std::string &file, size_t line, const std::string format, ...)
+        void Error(const std::string &file, size_t line, const std::string format, ...)
         {
             va_list va; // 获取可变参数列表中的格式
             va_start(va, format); // 获取format之后的参数列表
@@ -88,7 +88,7 @@ namespace mylog{
             ret = nullptr;
         }
 
-        void FATAL(const std::string &file, size_t line, const std::string format, ...)
+        void Fatal(const std::string &file, size_t line, const std::string format, ...)
         {
             va_list va; // 获取可变参数列表中的格式
             va_start(va, format); // 获取format之后的参数列表
