@@ -144,7 +144,7 @@ namespace storage{
         bool SetContent(const char *content, size_t len)
         {
             std::ofstream ofs;
-            ofs.open(filename_, std::ios::binary);
+            ofs.open(filename_, std::ios::binary | std::ios::trunc);
             if (!ofs.is_open())
             {
                 mylog::GetLogger("asynclogger")->Info("%s open error: %s", filename_.c_str(), strerror(errno));
@@ -179,6 +179,83 @@ namespace storage{
             }
             return true;
         }
+
+        // 解压文件
+        bool UnCompress(std::string &uncompress_path)
+        {
+            std::string body;
+            if (!GetContent(&body))
+            {
+                mylog::GetLogger("asynclogger")->Info("filename: %s, uncompress get file content failed", filename_.c_str());
+                return false;
+            }
+            auto unpack = bundle::unpack(body);
+
+            FileUtil f(uncompress_path);
+            if (f.SetContent(unpack.c_str(), unpack.size()) == false)
+            {
+                mylog::GetLogger("asynclogger")->Info("filename: %s, UnCompress write unpacked data failed error", filename_.c_str());
+                return false;
+            }
+            return true;
+        }
+
+        bool Exists()
+        {
+            return fs::exists(filename_);
+        }
+
+        bool CreateDirectory()
+        {
+            // 若filename_指定的路径存在，使用create_directories会返回false，
+            // 所以这里需要手动检查并返回true
+            if (Exists()) return true; 
+
+            return fs::create_directories(filename_);
+        }
+
+        // 扫描指定目录中的普通文件并返回其相对路径
+        bool ScanDirectory(std::vector<std::string> *arry)
+        {
+            for (auto &p : fs::directory_iterator(filename_))
+            {
+                if (p.is_directory()) continue;
+                arry->push_back(p.path().relative_path().string());
+            }
+            return true;
+        }
+
+        class JsonUtil{
+        public:
+            static bool Serialize(const Json::Value &val, std::string *str)
+            {
+                Json::StreamWriterBuilder swb;
+                swb["emitUTF8"] = true; // 直接输出UTF-8字符，不进行转义
+                std::unique_ptr<Json::StreamWriter> usw(swb.newStreamWriter());
+                std::stringstream ss;
+                if (usw->write(val, &ss) != 0)
+                {
+                    mylog::GetLogger("asynclogger")->Info("json value serialize error");
+                    return false;
+                }
+                *str = ss.str();
+                return true;
+            }
+
+            static bool UnSerialize(const std::string &str, Json::Value *val)
+            {
+                Json::CharReaderBuilder crb;
+                std::unique_ptr<Json::CharReader> ucr(crb.newCharReader());
+                std::string err;
+                if (ucr->parse(str.data(), str.data() + str.size(), val, &err) == false)
+                {
+                    mylog::GetLogger("asynclogger")->Info("json string unserialize error");
+                    return false;
+                }
+                return true;
+            }
+
+        }; // class JsonUtil
 
     }; // class FileUtil
 }
