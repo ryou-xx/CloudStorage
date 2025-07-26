@@ -148,11 +148,17 @@ namespace mylog{
         // 读取config.conf中的配置信息并存储在JsonData实例中
         struct JsonData{
             // 只能有一个JsonData实例，用户无法从类的外部构建实例
-            static JsonData GetJsonData()
+            static JsonData& GetJsonData()
             {
                 static JsonData json_data;
                 return json_data;
             }
+
+            // 确保单例
+            JsonData(const JsonData&) = delete;
+            JsonData(const JsonData&&) = delete;
+            JsonData& operator=(JsonData&) = delete;
+            JsonData& operator=(JsonData&&) = delete;
         public:
             size_t buffer_size; // 缓冲区基础容量
             size_t threadhold; // 倍数扩容阈值
