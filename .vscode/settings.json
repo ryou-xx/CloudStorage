@@ -55,7 +55,15 @@
         "semaphore": "cpp",
         "stop_token": "cpp",
         "thread": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "charconv": "cpp",
+        "chrono": "cpp",
+        "codecvt": "cpp",
+        "set": "cpp",
+        "format": "cpp",
+        "iomanip": "cpp",
+        "span": "cpp",
+        "variant": "cpp"
     },
     "search.followSymlinks": false
 }
