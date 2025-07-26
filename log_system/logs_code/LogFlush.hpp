@@ -7,7 +7,6 @@
 #include <cassert>
 #include "Util.hpp"
 
-extern mylog::Util::JsonData *g_conf_data;
 namespace mylog{
     // 日志输出器
     class LogFlush{
@@ -50,7 +49,7 @@ namespace mylog{
                 std::cerr << __FILE__ << " " << __LINE__ << " write log file failed: ";
                 perror(nullptr);
             }
-            if (g_conf_data->flush_log == 1)
+            if (Util::JsonData::GetJsonData().flush_log == 1)
             {
                 if (fflush(fs_) == EOF)
                 {
@@ -58,7 +57,7 @@ namespace mylog{
                     perror(nullptr);
                 }
             }
-            else if (g_conf_data->flush_log == 2)
+            else if (Util::JsonData::GetJsonData().flush_log == 2)
             {
                 fflush(fs_);
                 fsync(fileno(fs_));
@@ -94,7 +93,7 @@ namespace mylog{
                 std::cerr << __FILE__ << " " << __LINE__ << " fflush error: ";
                 perror(nullptr);
             }
-            if (g_conf_data->flush_log == 2)
+            if (Util::JsonData::GetJsonData().flush_log == 2)
             {
                 if (fsync(fileno(fs_)) != 0)
                 {

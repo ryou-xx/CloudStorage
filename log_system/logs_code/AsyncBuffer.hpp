@@ -4,8 +4,6 @@
 #include <cassert>
 #include "Util.hpp"
 
-extern mylog::Util::JsonData* g_conf_data;
-
 namespace mylog{
     class Buffer{
     protected:
@@ -19,20 +17,20 @@ namespace mylog{
             if (len >= WriteableSize())
             {
                 // 在缓冲区较小时使用倍率扩充，当缓冲区较大是使用线性扩充
-                if (buffer_.size() < g_conf_data->threadhold)
+                if (buffer_.size() < Util::JsonData::GetJsonData().threadhold)
                 {
                     buffer_.resize(2 * buffer_.size() + buffer_size);
                 }
                 else
                 {
-                    buffer_.resize(g_conf_data->linear_growth + buffer_size);
+                    buffer_.resize(Util::JsonData::GetJsonData().linear_growth + buffer_size);
                 }
             }
         }
     public:
         Buffer() : write_pos_(0), read_pos_(0)
         {
-            buffer_.resize(g_conf_data->buffer_size);
+            buffer_.resize(Util::JsonData::GetJsonData().buffer_size);
         }
 
         void Push(const char *data, size_t len)

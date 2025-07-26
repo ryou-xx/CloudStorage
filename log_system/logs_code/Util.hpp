@@ -148,9 +148,9 @@ namespace mylog{
         // 读取config.conf中的配置信息并存储在JsonData实例中
         struct JsonData{
             // 只能有一个JsonData实例，用户无法从类的外部构建实例
-            static JsonData* GetJsonData()
+            static JsonData GetJsonData()
             {
-                static JsonData* json_data = new JsonData;
+                static JsonData json_data;
                 return json_data;
             }
         public:

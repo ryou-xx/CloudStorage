@@ -8,7 +8,6 @@
 #include <unistd.h>
 #include "../Util.hpp"
 
-extern mylog::Util::JsonData *g_conf_data;
 
 void start_backup(const std::string &message)
 {
@@ -21,8 +20,8 @@ void start_backup(const std::string &message)
     sockaddr_in serv;
     bzero(&serv, sizeof(sockaddr_in));
     serv.sin_family = AF_INET;
-    serv.sin_port = htons(g_conf_data->backup_port);
-    inet_aton(g_conf_data->backup_addr.c_str(), &serv.sin_addr);
+    serv.sin_port = htons(mylog::Util::JsonData::GetJsonData().backup_port);
+    inet_aton(mylog::Util::JsonData::GetJsonData().backup_addr.c_str(), &serv.sin_addr);
 
     int cnt = 5;
     while (-1 == connect(sock, (sockaddr*)&serv, sizeof(serv)))
