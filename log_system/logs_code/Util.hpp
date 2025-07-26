@@ -187,6 +187,7 @@ namespace mylog{
                 backup_port = root["backup_port"].asInt();
                 thread_count = root["thread_count"].asInt();
             }
+            ~JsonData() = default;
         };// class JsonData
     }// Util
 }// mylog
