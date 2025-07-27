@@ -114,12 +114,12 @@ namespace storage{
             if (table_.find(url) == table_.end())
             {
                 pthread_rwlock_unlock(&rwlock_);
-                mylog::GetLogger("asynclogger")->Error("can not find URL: %s", url);
+                mylog::GetLogger("asynclogger")->Error("can not find URL: %s", url.c_str());
                 return false;
             }
             *info = table_[url];
             pthread_rwlock_unlock(&rwlock_);
-            mylog::GetLogger("asynclogger")->Info("URL: %s, get information successfully", url);
+            mylog::GetLogger("asynclogger")->Info("URL: %s, get information successfully", url.c_str());
             return true;
         }
 
@@ -132,12 +132,12 @@ namespace storage{
                 {
                     *info = e.second;
                     pthread_rwlock_unlock(&rwlock_);
-                    mylog::GetLogger("asynclogger")->Info("Path: %s, get information successfully", path);
+                    mylog::GetLogger("asynclogger")->Info("Path: %s, get information successfully", path.c_str());
                     return true; 
                 }
             }
             pthread_rwlock_unlock(&rwlock_);
-            mylog::GetLogger("asynclogger")->Error("can not find path: %s", path);
+            mylog::GetLogger("asynclogger")->Error("can not find path: %s", path.c_str());
             return false;
         }
 
