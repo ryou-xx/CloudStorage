@@ -39,6 +39,11 @@ namespace mylog{
 
         AsyncLogger::ptr DefaultLogger() { return default_logger_;}
 
+        // 确保单例
+        LoggerManager(const LoggerManager&) = delete;
+        LoggerManager(const LoggerManager&&) = delete;
+        LoggerManager& operator=(LoggerManager&) = delete;
+        LoggerManager& operator=(LoggerManager&&) = delete;
     private:
         // 新建一个Manager并初始化一个默认日志器
         LoggerManager()
@@ -48,6 +53,7 @@ namespace mylog{
             default_logger_ = builder->Build(); // 默认日志器，仅使用标准输出
             loggers_["default"] = default_logger_;
         }
+        ~LoggerManager() = default;
     private:
         std::mutex mtx_;
         AsyncLogger::ptr default_logger_;
