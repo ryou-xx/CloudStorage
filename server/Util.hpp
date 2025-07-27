@@ -69,7 +69,7 @@ namespace storage{
             if (-1 == stat(filename_.c_str(), &st))
             {
                 mylog::GetLogger("asynclogger")->Info("%s, Get file size failed: %s", filename_.c_str(), strerror(errno));
-
+                return -1;
             }
             return st.st_size;
         }
@@ -81,7 +81,7 @@ namespace storage{
             if (-1 == stat(filename_.c_str(), &st))
             {
                 mylog::GetLogger("asynclogger")->Info("%s, Get file size failed: %s", filename_.c_str(), strerror(errno));
-
+                return -1;
             }
             return st.st_atime;
         }
@@ -93,7 +93,7 @@ namespace storage{
             if (-1 == stat(filename_.c_str(), &st))
             {
                 mylog::GetLogger("asynclogger")->Info("%s, Get file size failed: %s", filename_.c_str(), strerror(errno));
-
+                return -1;
             }
             return st.st_mtime;
         }
