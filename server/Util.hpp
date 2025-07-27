@@ -129,6 +129,7 @@ namespace storage{
             if (!ifs.good())
             {
                 mylog::GetLogger("asynclogger")->Info("%s, read file content error", filename_.c_str());
+                return false;
             }
             ifs.close();
             return true;
@@ -224,8 +225,9 @@ namespace storage{
             }
             return true;
         }
+    }; // class FileUtil
 
-        class JsonUtil{
+    class JsonUtil{
         public:
             static bool Serialize(const Json::Value &val, std::string *str)
             {
@@ -254,8 +256,5 @@ namespace storage{
                 }
                 return true;
             }
-
-        }; // class JsonUtil
-
-    }; // class FileUtil
+    }; // class JsonUtil
 }
