@@ -207,6 +207,7 @@ namespace storage{
                 Insert(info);
             }
             mylog::GetLogger("asynclogger")->Info("init data manager completed");
+            return true;
         }
 
     private:

@@ -194,6 +194,7 @@ namespace storage{
                    << "<button onclick=\"window.location='" << file.url_ << "'\">⬇️ 下载</button>"
                    << "</div>";
             }
+            return ss.str();
         }
 
         static string FormatSize(size_t bytes)

@@ -10,7 +10,7 @@
 #include "bundle.h"
 #include "Config.hpp"
 #include "jsoncpp/json/json.h"
-#include "../../log_system/logs_code/MyLog.hpp"
+#include "../log_system/logs_code/MyLog.hpp"
 
 namespace storage{
     namespace fs = std::filesystem;
