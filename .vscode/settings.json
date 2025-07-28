@@ -64,7 +64,9 @@
         "iomanip": "cpp",
         "span": "cpp",
         "variant": "cpp",
-        "regex": "cpp"
+        "regex": "cpp",
+        "bitset": "cpp",
+        "cinttypes": "cpp"
     },
     "search.followSymlinks": false
 }

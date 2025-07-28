@@ -116,7 +116,7 @@ namespace storage{
 
             string storage_path;
             if (storage_type == "low") 
-                storage_path = Config::GetConfigData().GetLowStorageDirt();
+                storage_path = Config::GetConfigData().GetLowStorageDir();
             else if (storage_type == "deep")
                 storage_path = Config::GetConfigData().GetDeepStorageDir();
             else
@@ -126,9 +126,212 @@ namespace storage{
                 return;
             }
 
+            FileUtil dir(storage_path);
+            dir.CreateDirectory();      // 若路径不存在，则创建路径
+
+            storage_path += filename;
+#ifdef DEBUG
+            mylog::GetLogger("asynclogger")->Info("storage_path: %s", storage_path.c_str());
+#endif
+            FileUtil fu(storage_path);
+            if (storage_path.find("low_storage/") != string::npos)
+            {
+                if (!fu.SetContent(content.data(), len))
+                {
+                    mylog::GetLogger("asynclogger")->Error("low storage write file failed");
+                    evhttp_send_error(req, HTTP_INTERNAL, "server error");
+                    return;
+                }
+                else
+                {
+                    mylog::GetLogger("asynclogger")->Info("low_storage success");
+                }
+            }
+            else
+            {
+                if (!fu.Compress(content, Config::GetConfigData().GetBundleFormat()))
+                {
+                    mylog::GetLogger("asynclogger")->Error("deep storage compress failed");
+                    evhttp_send_error(req, HTTP_INTERNAL, "server error");
+                    return;
+                }
+                else
+                {
+                    mylog::GetLogger("asynclogger")->Info("deep_storage success");
+                }
+            }
+
+            StorageInfo info;
+            info.NewStorageInfo(storage_path);
+            DataManager::GetDataManager().Insert(info);
+
+            evhttp_send_reply(req, HTTP_OK, "Success", nullptr);
+            mylog::GetLogger("asynclogger")->Info("upload file successfully");
         }
-        static void Download(evhttp_request *req, void *args){}
-        static void ListShow(evhttp_request *req, void *args){}
+
+
+        static std::string GenerateModernFileList(const std::vector<StorageInfo> &files_info)
+        {
+            std::stringstream ss;
+            ss << "<div class = \"file-list\"><h3>云盘文件</h3>";
+
+            for (const auto file : files_info)
+            {
+                string file_name = FileUtil(file.storage_path_).FileName();
+
+                string storage_type = "low";
+                if (file.storage_path_.find("deep_storage/") != string::npos) storage_type = "deep";
+
+                ss << "<div class='file-item'>"
+                   << "<div class='file-info'>"
+                   << "<span>📄" << file_name << "</span>"
+                   << "<span class='file-type'>"
+                   << (storage_type == "deep" ? "深度存储" : "普通存储")
+                   << "</span>"
+                   << "<span>" << FormatSize(file.fsize_) << "</span>"
+                   << "<span>" << std::ctime(&file.mtime_) << "</span>"
+                   << "</div>"
+                   << "<button onclick=\"window.location='" << file.url_ << "'\">⬇️ 下载</button>"
+                   << "</div>";
+            }
+        }
+
+        static string FormatSize(size_t bytes)
+        {
+            const char *units[] = {"B", "KB", "MB", "GB"};
+            int unit_index = 0;
+            double size = bytes;
+
+            while (size >= 1024 && unit_index < 3)
+            {
+                size /= 1024;
+                unit_index++;
+            }
+
+            std::stringstream ss;
+            ss << std::fixed << std::setprecision(2) << size << " " << units[unit_index];
+            return ss.str();
+        }
+        static void Download(evhttp_request *req, void *args)
+        {
+            mylog::GetLogger("asynclogger")->Info("Download start");
+            string url_path = evhttp_uri_get_path(evhttp_request_get_evhttp_uri(req));
+            StorageInfo file_info;
+            if(!DataManager::GetDataManager().GetOneByURL(url_path, &file_info))
+            {
+                evhttp_send_error(req, HTTP_NOTFOUND, "No such file");
+                return;
+            }
+            mylog::GetLogger("asynclogger")->Info("requeset url_path: %s", url_path.c_str());
+
+            string download_path;
+            if (file_info.storage_path_.find(Config::GetConfigData().GetDeepStorageDir()) != string::npos)
+            {
+                FileUtil fu(file_info.storage_path_);
+                download_path = Config::GetConfigData().GetTemporaryFileDir() + fu.FileName();
+                // 若临时文件文件夹不存在，需要先创建
+                FileUtil(Config::GetConfigData().GetTemporaryFileDir()).CreateDirectory();
+                fu.UnCompress(download_path);
+            }
+
+            FileUtil fu(download_path);
+            if (!fu.Exists() && file_info.storage_path_.find("deep_storage/") != string::npos)
+            {
+                evhttp_send_error(req, HTTP_INTERNAL, "uncompress error");
+            }
+            else if (!fu.Exists() && file_info.storage_path_.find("low_storage/") != string::npos)
+            {
+                evhttp_send_error(req, HTTP_BADREQUEST, "file not exist");
+            }
+
+            bool retrans = false;
+            string old_etag;
+            auto if_range = evhttp_find_header(evhttp_request_get_input_headers(req), "If-Range");
+            if (if_range)
+            {
+                old_etag = if_range;
+
+                if (old_etag == GetETag(file_info))
+                {
+                    retrans = true;
+                    mylog::GetLogger("asynclogger")->Info("%s need breakpoint continuous transmission", download_path.c_str());
+                }
+            }
+
+            if (!fu.Exists())
+            {
+                mylog::GetLogger("asynclogger")->Info("%s not exists", download_path.c_str());
+                download_path += "not exists";
+                evhttp_send_error(req, HTTP_NOTFOUND, download_path.c_str());
+                return;
+            }
+
+            evbuffer *output_buf = evhttp_request_get_output_buffer(req);
+            int fd = open(download_path.c_str(), O_RDONLY);
+            if (fd == -1)
+            {
+                mylog::GetLogger("asynclogger")->Error("open file %s error: %s", download_path.c_str(), strerror(errno));
+                evhttp_send_error(req, HTTP_INTERNAL, strerror(errno));
+                return;
+            }
+
+            if (-1 == evbuffer_add_file(output_buf, fd, 0, fu.FileSize()))
+            {
+                mylog::GetLogger("asynclogger")->Error("evbuffer_add_file %s error: %s", download_path.c_str(), strerror(errno));
+                evhttp_send_error(req, HTTP_INTERNAL, "evbuffer_add_file failed");
+            }
+
+            evkeyvalq *output_headers =  evhttp_request_get_output_headers(req);
+            evhttp_add_header(output_headers, "Accept-Ranges", "bytes");
+            evhttp_add_header(output_headers, "ETag", GetETag(file_info).c_str());
+            evhttp_add_header(output_headers, "Content-Type", "application/octet-stream");
+
+            if (retrans == false)
+            {
+                evhttp_send_reply(req, HTTP_OK, "Success", nullptr);
+                mylog::GetLogger("asynclogger")->Info("send file without breakpoint continuous transmission");
+            }
+            else
+            {
+                evhttp_send_reply(req, 206, "Success", nullptr);
+                mylog::GetLogger("asynclogger")->Info("send file with breakpoint continuous transmission");
+            }
+            if (download_path != file_info.storage_path_) remove(download_path.c_str()); // 删除临时文件
+        }
+        
+        static std::string GetETag(const StorageInfo &info)
+        {
+            string etag = FileUtil(info.storage_path_).FileName()
+                          + "-" + std::to_string(info.fsize_)
+                          + "-" + std::to_string(info.mtime_);
+            return etag;
+        }
+        
+        static void ListShow(evhttp_request *req, void *args)
+        {
+            mylog::GetLogger("asynclogger")->Info("ListShow start");
+
+            std::vector<StorageInfo> files_info;
+            DataManager::GetDataManager().GetAll(files_info);
+
+            std::ifstream templateFile("index.html");
+            string tpContent(
+                (std::istreambuf_iterator<char>(templateFile)), 
+                std::istreambuf_iterator<char>());
+
+            tpContent = std::regex_replace(tpContent, 
+                                            std::regex("\\{\\{FILE_LIST\\}\\}"),
+                                            GenerateModernFileList(files_info));
+            tpContent = std::regex_replace(tpContent, 
+                                            std::regex("\\{\\{BACKEND_URL\\}\\}"),
+                                            "http://" + Config::GetConfigData().GetServerIP() + ":" + \
+                                            std::to_string(Config::GetConfigData().GetServerPort()));                                
+            
+            evbuffer_add(evhttp_request_get_output_buffer(req), tpContent.data(), tpContent.size());
+            evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/html;charset=utf-8");
+            evhttp_send_reply(req, HTTP_OK, nullptr, nullptr);
+            mylog::GetLogger("asynclogger")->Info("LishShow completed");
+        }
     private:
         uint16_t server_port_;
         string server_ip_;

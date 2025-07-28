@@ -31,7 +31,8 @@ namespace storage{
             deep_storage_dir_ = val["deep_storage_dir"].asString();
             low_storage_dir_ = val["low_storage_dir"].asString();
             storage_info_file_ = val["storage_info_file"].asString();
-            bundle_format_ = val["bundle_format_"].asInt();
+            bundle_format_ = val["bundle_format"].asInt();
+            temporary_files_dir_ = val["temporary_files_dir"].asString();
             return true;
         }
 
@@ -43,7 +44,9 @@ namespace storage{
 
         string GetDeepStorageDir() { return deep_storage_dir_; }
 
-        string GetLowStorageDirt() { return low_storage_dir_; }
+        string GetLowStorageDir() { return low_storage_dir_; }
+
+        string GetTemporaryFileDir() { return storage_info_file_; }
 
         string GetStorageInfoFile() { return storage_info_file_; }
 
@@ -72,6 +75,7 @@ namespace storage{
         string download_prefix_;
         string deep_storage_dir_;
         string low_storage_dir_;
+        string temporary_files_dir_;
         string storage_info_file_;       // 记录已存储文件信息的文件的路径
         int bundle_format_;
     }; // class Config
