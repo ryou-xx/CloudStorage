@@ -312,7 +312,9 @@ namespace storage{
                         {
                             mylog::GetLogger("asynclogger")->Error("evbuffer_add_file partial content: %s error", 
                                 download_path.c_str(), strerror(errno));
-                            // evhttp_send_error(req, HTTP_INTERNAL, "evbuffer_add_file partial content error");
+                            evhttp_send_error(req, HTTP_INTERNAL, "evbuffer_add_file partial content error");
+                            close(fd);
+                            return;
                         }
 
                         evhttp_send_reply(req, 206, "Partial content", nullptr);
@@ -332,7 +334,7 @@ namespace storage{
                 {
                     mylog::GetLogger("asynclogger")->Error("evbuffer_add_file %s error: %s", 
                         download_path.c_str(), strerror(errno));
-                    // evhttp_send_error(req, HTTP_INTERNAL, "evbuffer_add_file failed");
+                    evhttp_send_error(req, HTTP_INTERNAL, "evbuffer_add_file failed");
                 }
                 evhttp_send_reply(req, HTTP_OK, "Success", nullptr);
                 mylog::GetLogger("asynclogger")->Info("send file without breakpoint continuous transmission");
