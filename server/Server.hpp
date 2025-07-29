@@ -226,7 +226,7 @@ namespace storage{
             }
             mylog::GetLogger("asynclogger")->Info("requeset url_path: %s", url_path.c_str());
 
-            string download_path;
+            string download_path = file_info.storage_path_;
             if (file_info.storage_path_.find(Config::GetConfigData().GetDeepStorageDir()) != string::npos)
             {
                 FileUtil fu(file_info.storage_path_);
