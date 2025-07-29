@@ -1,0 +1,6 @@
+[22:40:18][139062415460032][DEBUG][asynclogger][Server.hpp: 24]	Server Construct start
+[22:40:18][139062415460032][INFO][asynclogger][Util.hpp: 254]	json string unserialize error
+[22:40:18][139062415460032][INFO][asynclogger][Config.hpp: 68]	Get configure information successfully
+[22:40:18][139062415460032][DEBUG][asynclogger][Server.hpp: 30]	Server Construct end
+[22:40:18][139062415460032][INFO][asynclogger][Test.cpp: 15]	service step in RunModule
+[22:40:18][139062415460032][FATAL][asynclogger][Server.hpp: 46]	evhttp_bind_socket failed

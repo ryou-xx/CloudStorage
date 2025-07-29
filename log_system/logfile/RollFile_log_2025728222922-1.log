@@ -1,4 +1,3 @@
-
 [22:29:22][127856269788992][INFO][asynclogger][test.cpp: 19]	测试日志-1
 [22:29:22][127856269788992][WARN][asynclogger][test.cpp: 20]	测试日志-2
 [22:29:22][127856269788992][DEBUG][asynclogger][test.cpp: 21]	测试日志-3

@@ -172,7 +172,7 @@ namespace mylog{
             {
                 std::string content;
                 mylog::Util::File file;
-                if (file.GetContent(&content, "./config.conf") == false)
+                if (file.GetContent(&content, "../log_system/logs_code/config.conf") == false)
                 {
                     std::cerr << __FILE__ << " " << __LINE__ << " open config.conf failed: ";
                     perror(nullptr);
