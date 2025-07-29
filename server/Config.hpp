@@ -46,7 +46,7 @@ namespace storage{
 
         string GetLowStorageDir() { return low_storage_dir_; }
 
-        string GetTemporaryFileDir() { return storage_info_file_; }
+        string GetTemporaryFileDir() { return temporary_files_dir_; }
 
         string GetStorageInfoFile() { return storage_info_file_; }
 
@@ -61,9 +61,10 @@ namespace storage{
     private:
         Config()
         {
-            if (ReadConfig())
+            if (!ReadConfig())
             {
                 mylog::GetLogger("asynclogger")->Fatal("ReadConfig failed");
+                return;
             }
             mylog::GetLogger("asynclogger")->Info("Get configure information successfully");
         }

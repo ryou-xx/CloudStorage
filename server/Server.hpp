@@ -23,9 +23,10 @@ namespace storage{
 #ifdef DEBUG_LOG
             mylog::GetLogger("asynclogger")->Debug("Server Construct start");
 #endif
-            server_port_ = Config::GetConfigData().GetServerPort();
-            server_ip_ = Config::GetConfigData().GetServerIP();
-            download_prefix_ = Config::GetConfigData().GetDownLoadPrefix();
+            Config &cf_data = Config::GetConfigData();
+            server_port_ = cf_data.GetServerPort();
+            server_ip_ = cf_data.GetServerIP();
+            download_prefix_ = cf_data.GetDownLoadPrefix();
 #ifdef DEBUG_LOG
             mylog::GetLogger("asynclogger")->Debug("Server Construct end");
 #endif
@@ -41,7 +42,7 @@ namespace storage{
             }
 
             evhttp *httpd = evhttp_new(base);
-            if(evhttp_bind_socket(httpd, server_ip_.c_str(), server_port_) != 0)
+            if(evhttp_bind_socket(httpd, "0.0.0.0", server_port_) != 0)
             {
                 mylog::GetLogger("asynclogger")->Fatal("evhttp_bind_socket failed");
                 return false;
@@ -245,26 +246,17 @@ namespace storage{
                 evhttp_send_error(req, HTTP_BADREQUEST, "file not exist");
             }
 
+            // 确认是否需要断点续传 //  
             bool retrans = false;
-            string old_etag;
+            // If-Range 携带ETag
             auto if_range = evhttp_find_header(evhttp_request_get_input_headers(req), "If-Range");
             if (if_range)
             {
-                old_etag = if_range;
-
-                if (old_etag == GetETag(file_info))
+                if (string(if_range) == GetETag(file_info))
                 {
                     retrans = true;
                     mylog::GetLogger("asynclogger")->Info("%s need breakpoint continuous transmission", download_path.c_str());
                 }
-            }
-
-            if (!fu.Exists())
-            {
-                mylog::GetLogger("asynclogger")->Info("%s not exists", download_path.c_str());
-                download_path += "not exists";
-                evhttp_send_error(req, HTTP_NOTFOUND, download_path.c_str());
-                return;
             }
 
             evbuffer *output_buf = evhttp_request_get_output_buffer(req);
@@ -276,27 +268,76 @@ namespace storage{
                 return;
             }
 
-            if (-1 == evbuffer_add_file(output_buf, fd, 0, fu.FileSize()))
-            {
-                mylog::GetLogger("asynclogger")->Error("evbuffer_add_file %s error: %s", download_path.c_str(), strerror(errno));
-                evhttp_send_error(req, HTTP_INTERNAL, "evbuffer_add_file failed");
-            }
-
+            // 设置通用响应头
             evkeyvalq *output_headers =  evhttp_request_get_output_headers(req);
             evhttp_add_header(output_headers, "Accept-Ranges", "bytes");
             evhttp_add_header(output_headers, "ETag", GetETag(file_info).c_str());
             evhttp_add_header(output_headers, "Content-Type", "application/octet-stream");
 
-            if (retrans == false)
+            if (retrans) //断点续传
             {
+                auto input_header = evhttp_request_get_input_headers(req);
+                const char* range_value = evhttp_find_header(input_header,"Range");
+                if (range_value == nullptr)
+                {
+                    retrans = false; // 退化为全文件传输
+                }
+                else
+                {
+                    const string range_str(range_value);
+                    std::smatch match;
+                    std::regex str_regex("byte=(\\d+)-(\\d*)"); // \d+表示出现至少一个数字 \d*表示出现0个或多个数字
+                    if (std::regex_search(range_str, match, str_regex) && !match[1].str().empty()) // 找到匹配内容且捕获组1的内容不为空
+                    {
+                        long long start_byte = std::stoll(match[1].str());
+                        long long end_byte = -1;
+                        if (match.size() > 2 && !match[2].str().empty()) end_byte = std::stoll(match[2].str());
+
+                        size_t total_size = fu.FileSize();
+                        if (end_byte == -1 || end_byte >= total_size) end_byte = total_size - 1;
+
+                        size_t request_len = end_byte - start_byte + 1;
+                        if (start_byte >= total_size || request_len <= 0)
+                        {
+                            evhttp_add_header(output_headers, "Content-Range", ("bytes */" + std::to_string(total_size)).c_str());
+                            evhttp_send_reply(req, 416, "Range Not Saticfiable", nullptr);
+                            close(fd);
+                            return;
+                        }
+                        string cr_str = "bytes " + std::to_string(start_byte) + \
+                                        "-" + std::to_string(end_byte) + "/" +  std::to_string(total_size);
+                        
+                        evhttp_add_header(output_headers, "Content-Range", cr_str.c_str());
+                        if (-1 == evbuffer_add_file(output_buf, fd, start_byte, request_len))
+                        {
+                            mylog::GetLogger("asynclogger")->Error("evbuffer_add_file partial content: %s error", 
+                                download_path.c_str(), strerror(errno));
+                            // evhttp_send_error(req, HTTP_INTERNAL, "evbuffer_add_file partial content error");
+                        }
+
+                        evhttp_send_reply(req, 206, "Partial content", nullptr);
+                        mylog::GetLogger("asynclogger")->Info("send file with breakpoint continuous transmission");
+                    }
+                    else
+                    {
+                        retrans = false;
+                    }             
+                }            
+            }
+
+            // 如果不需要断点续传，直接传输整个文件
+            if (!retrans)
+            {
+                if (-1 == evbuffer_add_file(output_buf, fd, 0, fu.FileSize()))
+                {
+                    mylog::GetLogger("asynclogger")->Error("evbuffer_add_file %s error: %s", 
+                        download_path.c_str(), strerror(errno));
+                    // evhttp_send_error(req, HTTP_INTERNAL, "evbuffer_add_file failed");
+                }
                 evhttp_send_reply(req, HTTP_OK, "Success", nullptr);
                 mylog::GetLogger("asynclogger")->Info("send file without breakpoint continuous transmission");
             }
-            else
-            {
-                evhttp_send_reply(req, 206, "Success", nullptr);
-                mylog::GetLogger("asynclogger")->Info("send file with breakpoint continuous transmission");
-            }
+
             if (download_path != file_info.storage_path_) remove(download_path.c_str()); // 删除临时文件
         }
         

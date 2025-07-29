@@ -1,0 +1,16 @@
+[16:43:16][133547507364544][DEBUG][asynclogger][Server.hpp: 24]	Server Construct start
+[16:43:16][133547507364544][INFO][asynclogger][Config.hpp: 69]	Get configure information successfully
+[16:43:16][133547507364544][DEBUG][asynclogger][Server.hpp: 31]	Server Construct end
+[16:43:16][133547507364544][INFO][asynclogger][Test.cpp: 15]	service step in RunModule
+[16:43:16][133547507364544][DEBUG][asynclogger][Server.hpp: 57]	event_base_dispatch
+[16:43:24][133547507364544][INFO][asynclogger][Server.hpp: 74]	get req, uri_path: /
+[16:43:24][133547507364544][INFO][asynclogger][Server.hpp: 314]	ListShow start
+[16:43:24][133547507364544][INFO][asynclogger][DataManager.hpp: 163]	DataManager construct start
+[16:43:24][133547507364544][INFO][asynclogger][DataManager.hpp: 176]	init data manager start
+[16:43:24][133547507364544][INFO][asynclogger][DataManager.hpp: 87]	data information insert start
+[16:43:24][133547507364544][INFO][asynclogger][DataManager.hpp: 99]	data information insert completed
+[16:43:24][133547507364544][INFO][asynclogger][DataManager.hpp: 87]	data information insert start
+[16:43:24][133547507364544][INFO][asynclogger][DataManager.hpp: 99]	data information insert completed
+[16:43:24][133547507364544][INFO][asynclogger][DataManager.hpp: 209]	init data manager completed
+[16:43:24][133547507364544][INFO][asynclogger][DataManager.hpp: 170]	DataManager construct end
+[16:43:24][133547507364544][INFO][asynclogger][Server.hpp: 335]	LishShow completed

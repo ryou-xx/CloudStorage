@@ -30,9 +30,9 @@ void log_system_module_init()
 int main()
 {
     log_system_module_init();
-    thread t1(service_module);
-
-    t1.join();
+    // thread t1(service_module);
+    service_module();
+    // t1.join();
     delete(tp);
     return 0;
 }

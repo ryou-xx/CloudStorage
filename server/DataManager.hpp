@@ -25,7 +25,7 @@ namespace storage{
             mylog::GetLogger("asynclogger")->Info(
                 "download_url: %s, mtime: %s, atime: %s, fsize: %d",
                  url_.c_str(), ctime(&mtime_), ctime(&atime_), fsize_);
-            mylog::GetLogger("aysnclogger")->Info("NewStorageInfo end");
+            mylog::GetLogger("asynclogger")->Info("NewStorageInfo end");
             return true;
         }
     public:
@@ -160,14 +160,14 @@ namespace storage{
     private:
         DataManager()
         {
-            mylog::GetLogger("aysnclogger")->Info("DataManager construct start");
+            mylog::GetLogger("asynclogger")->Info("DataManager construct start");
             // 获取已存储的文件的信息
             storage_info_file_ = Config::GetConfigData().GetStorageInfoFile();
             pthread_rwlock_init(&rwlock_, nullptr);
             need_persist_ = false;
             InitLoad();
             need_persist_ = true;
-            mylog::GetLogger("aysnclogger")->Info("DataManager construct end");
+            mylog::GetLogger("asynclogger")->Info("DataManager construct end");
         }
         ~DataManager() { pthread_rwlock_destroy(&rwlock_); }
 

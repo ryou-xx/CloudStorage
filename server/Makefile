@@ -1,6 +1,6 @@
 test:Test.cpp base64.cpp
-	g++ -o $@ $^ -std=c++17 -lpthread  -ljsoncpp -lbundle -levent 
-gdb_test:Test.cpp
+	g++ -o $@ $^ -std=c++17 -lpthread  -ljsoncpp -lbundle -levent
+gdb_test:Test.cpp base64.cpp
 	g++ -g -o $@ $^ -std=c++17 -lpthread -ljsoncpp  -lbundle -levent
 .PHONY:clean
 clean:
