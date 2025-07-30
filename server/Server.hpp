@@ -75,6 +75,7 @@ namespace storage{
 
             if (path.find("/download") != string::npos) Download(req, args);
             else if (path == "/upload") Upload(req, args);
+            else if (path.find("/delete") != string::npos) Delete(req, args);
             else if (path == "/") ListShow(req, args);
             else evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
         }
@@ -97,7 +98,7 @@ namespace storage{
             size_t len = evbuffer_get_length(buf); // 获取请求体大小  
             if (0 == len)
             {
-                evhttp_send_error(req, HTTP_BADREQUEST, "file empty");
+                evhttp_send_reply(req, HTTP_BADREQUEST, "file empty",nullptr);
                 mylog::GetLogger("asynclogger")->Info("request body is empty");
                 return;
             }
@@ -107,7 +108,7 @@ namespace storage{
             if (-1 == evbuffer_copyout(buf, &(content[0]), len))
             {
                 mylog::GetLogger("asynclogger")->Info("evbuffer_copyout error");
-                evhttp_send_error(req, HTTP_INTERNAL, nullptr);
+                evhttp_send_reply(req, HTTP_INTERNAL, nullptr, nullptr);
             }
 
             string filename = evhttp_find_header(req->input_headers, "FileName");
@@ -123,7 +124,7 @@ namespace storage{
             else
             {
                 mylog::GetLogger("asynclogger")->Info("StyrageType invalid");
-                evhttp_send_error(req, HTTP_BADREQUEST, "storage type invalid");
+                evhttp_send_reply(req, HTTP_BADREQUEST, "storage type invalid",nullptr);
                 return;
             }
 
@@ -140,7 +141,7 @@ namespace storage{
                 if (!fu.SetContent(content.data(), len))
                 {
                     mylog::GetLogger("asynclogger")->Error("low storage write file failed");
-                    evhttp_send_error(req, HTTP_INTERNAL, "server error");
+                    evhttp_send_reply(req, HTTP_INTERNAL, "server error",nullptr);
                     return;
                 }
                 else
@@ -153,7 +154,7 @@ namespace storage{
                 if (!fu.Compress(content, Config::GetConfigData().GetBundleFormat()))
                 {
                     mylog::GetLogger("asynclogger")->Error("deep storage compress failed");
-                    evhttp_send_error(req, HTTP_INTERNAL, "server error");
+                    evhttp_send_reply(req, HTTP_INTERNAL, "server error",nullptr);
                     return;
                 }
                 else
@@ -187,14 +188,18 @@ namespace storage{
                    << "<div class='file-info'>"
                    << "<span>📄" << file_name << "</span>"
                    << "<span class='file-type'>"
-                   << (storage_type == "deep" ? "深度存储" : "普通存储")
+                   << (storage_type == "deep" ? "压缩存储" : "普通存储")
                    << "</span>"
                    << "<span>" << FormatSize(file.fsize_) << "</span>"
                    << "<span>" << std::ctime(&file.mtime_) << "</span>"
                    << "</div>"
-                   << "<button onclick=\"window.location='" << file.url_ << "'\">⬇️ 下载</button>"
+                   << "<div class='file-actions'>"
+                   << "<button onclick=\"DeleteFile('" << "/delete/" <<file_name << "')\"> 删除</button>"
+                   << "<button onclick=\"window.location='" << file.url_ << "'\">下载</button>"
+                   << "</div>"
                    << "</div>";
             }
+            ss << "</div=>";
             return ss.str();
         }
 
@@ -350,12 +355,55 @@ namespace storage{
                           + "-" + std::to_string(info.mtime_);
             return etag;
         }
+
+        static void Delete(evhttp_request *req, void *args)
+        {
+            mylog::GetLogger("asynclogger")->Info("Delete start");
+            string delete_path = evhttp_uri_get_path(evhttp_request_get_evhttp_uri(req));
+            auto pos = delete_path.find_last_of("/");
+            if (pos == string::npos)
+            {
+                mylog::GetLogger("asynclogger")->Info("Invalid URL format");
+                evhttp_send_reply(req, HTTP_BADREQUEST, "Invalid URL format", nullptr);
+                return;
+            }
+
+            string url_path = Config::GetConfigData().GetDownLoadPrefix() + delete_path.substr(pos + 1);
+
+            StorageInfo file_info;
+            if (!DataManager::GetDataManager().GetOneByURL(url_path,&file_info))
+            {
+                // 文件不存在，直接返回成功
+                DataManager::GetDataManager().Update();
+                evhttp_send_reply(req, HTTP_OK, "Success", nullptr);
+                return;
+            }
+
+            if (!FileUtil(file_info.storage_path_).Exists())
+            {
+                // 文件不存在，直接返回成功
+                DataManager::GetDataManager().Update();
+                evhttp_send_reply(req, HTTP_OK, "Success", nullptr);
+                return;
+            }
+
+            if (remove(file_info.storage_path_.c_str()) == -1)
+            {
+                mylog::GetLogger("asynclogger")->Info("delete file %s failed: %s", file_info.storage_path_.c_str(), strerror(errno));
+                evhttp_send_reply(req, HTTP_INTERNAL, "Delete failed", nullptr);
+            }
+
+            DataManager::GetDataManager().Remove(file_info.url_);
+            evhttp_send_reply(req, HTTP_OK, "Success", nullptr);
+            mylog::GetLogger("asynclogger")->Info("delete file %s successfully", file_info.storage_path_.c_str());
+        }
         
         static void ListShow(evhttp_request *req, void *args)
         {
             mylog::GetLogger("asynclogger")->Info("ListShow start");
 
             std::vector<StorageInfo> files_info;
+            DataManager::GetDataManager().Update();
             DataManager::GetDataManager().GetAll(files_info);
 
             std::ifstream templateFile("index.html");

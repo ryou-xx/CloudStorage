@@ -155,7 +155,9 @@ namespace storage{
         // 删除云端文件后要从table_中删除对应的文件信息并更新storage文件
         void Remove(const string &url)
         {
+            pthread_rwlock_wrlock(&rwlock_);
             table_.erase(url);
+            pthread_rwlock_unlock(&rwlock_);
             if (!Storage()) // 更新失败，程序能够正常运行，但是用户在浏览器中看到的文件列表可能过期
                 mylog::GetLogger("asynclogger")->Warn("Update %s failed, files list may expired", Config::GetConfigData().GetStorageInfoFile());
         }
@@ -163,6 +165,7 @@ namespace storage{
         // 更新文件信息，同时查看文件是否真实存在，若不存在需要删除该文件在table_中的信息并更新storage文件
         void Update()
         {
+            pthread_rwlock_wrlock(&rwlock_);
             size_t old_size = table_.size();
             for (auto it = table_.begin(); it != table_.end(); ) 
             {
@@ -179,7 +182,8 @@ namespace storage{
                     it->second.fsize_ = fu.FileSize();
                     ++it;
                 }
-            }    
+            }   
+            pthread_rwlock_unlock(&rwlock_); 
             if (!Storage()) // 更新失败，程序能够正常运行，但是用户在浏览器中看到的文件列表可能过期
                 mylog::GetLogger("asynclogger")->Warn("Update %s failed, files list may expired", Config::GetConfigData().GetStorageInfoFile());
         }

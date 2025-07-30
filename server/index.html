@@ -4,13 +4,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>卡码异步日志存储系统</title>
+    <title>异步日志云存储系统</title>
     <style>
         :root {
             --primary-color: #2c3e50;
             --secondary-color: #3498db;
             --background: #f5f6fa;
             --card-bg: #ffffff;
+            --success: #2ecc71;
+            --error: #e74c3c;
         }
 
         * {
@@ -44,6 +46,12 @@
             padding: 2rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section.uploading {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .form-group {
@@ -63,6 +71,11 @@
             width: 100%;
             border-radius: 5px;
             cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        input[type="file"]:hover {
+            border-color: var(--secondary-color);
         }
 
         .storage-type {
@@ -77,6 +90,7 @@
             border-radius: 5px;
             cursor: pointer;
             transition: all 0.3s ease;
+            display: block;
         }
 
         .storage-type input:checked+label {
@@ -94,12 +108,41 @@
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            min-width: 150px;
         }
 
         button:hover {
             opacity: 0.9;
             transform: translateY(-2px);
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+            opacity: 1;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 1rem;
+            position: relative;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            display: none;
         }
 
         .file-list {
@@ -115,6 +158,11 @@
             justify-content: space-between;
             padding: 1rem;
             border-bottom: 1px solid #eee;
+            transition: background-color 0.3s;
+        }
+
+        .file-item:hover {
+            background-color: #f9f9f9;
         }
 
         .file-info {
@@ -129,14 +177,47 @@
             border-radius: 5px;
             font-size: 0.9rem;
         }
+
+        .file-actions {
+            display: flex;
+            gap: 0.5rem;        
+            align-items: center;
+        }
+
+        .status-message {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            height: 20px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .status-message.show {
+            opacity: 1;
+        }
+
+        .status-success {
+            color: var(--success);
+        }
+
+        .status-error {
+            color: var(--error);
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <h1>☁异步日志云存储</h1>
+        <h1>☁异步日志云存储系统</h1>
 
-        <div class="upload-section">
+        <div class="upload-section" id="uploadSection">
             <div class="form-group">
                 <label>选择文件</label>
                 <input type="file" id="fileInput">
@@ -147,7 +228,7 @@
                 <div class="storage-type">
                     <div>
                         <input type="radio" name="storageType" id="deepStorage" value="deep" checked>
-                        <label for="deepStorage">深度存储</label>
+                        <label for="deepStorage">压缩存储</label>
                     </div>
                     <div>
                         <input type="radio" name="storageType" id="lowStorage" value="low">
@@ -156,9 +237,14 @@
                 </div>
             </div>
 
-            <button onclick="uploadFile()">
-                ⬆️ 开始上传
-            </button>
+            <div class="button-container">
+                <button id="uploadBtn" onclick="uploadFile()">
+                    <span class="spinner" id="uploadSpinner"></span>
+                    <span id="buttonText">⬆开始上传⬆</span>
+                </button>
+            </div>
+            
+            <div class="status-message" id="statusMessage"></div>
         </div>
 
         <!-- 文件列表动态插入点 -->
@@ -170,39 +256,100 @@
         const config = {
             backendUrl: '{{BACKEND_URL}}'
         };
+        
+        // 保存原始按钮文本
+        const originalButtonText = document.getElementById('buttonText').textContent;
+        
+        // 显示上传状态
+        function showStatus(message, isSuccess) {
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.textContent = message;
+            statusMessage.className = 'status-message ' + (isSuccess ? 'status-success' : 'status-error');
+            statusMessage.classList.add('show');
+            
+            // 3秒后隐藏消息
+            setTimeout(() => {
+                statusMessage.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 更新按钮状态
+        function setUploadButtonState(isUploading) {
+            const button = document.getElementById('uploadBtn');
+            const buttonText = document.getElementById('buttonText');
+            const spinner = document.getElementById('uploadSpinner');
+            const uploadSection = document.getElementById('uploadSection');
+            
+            if (isUploading) {
+                button.disabled = true;
+                buttonText.textContent = "文件上传中...";
+                spinner.style.display = 'inline-block';
+                uploadSection.classList.add('uploading');
+            } else {
+                button.disabled = false;
+                buttonText.textContent = originalButtonText;
+                spinner.style.display = 'none';
+                uploadSection.classList.remove('uploading');
+            }
+        }
+
+        async function DeleteFile(url_path) {
+            try {
+                const response = await fetch(url_path, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    location.reload();
+                }
+            } catch (error) {
+                console.error('删除错误:', error);
+            }          
+        }
 
         async function uploadFile() {
             const fileInput = document.getElementById('fileInput');
             const storageType = document.querySelector('input[name="storageType"]:checked').value;
             const file = fileInput.files[0];
-
+            
             if (!file) {
-                alert('请先选择文件');
+                showStatus('请先选择文件', false);
                 return;
             }
-
-            // // Base64 编码
-            const encodedFilename = btoa(unescape(encodeURIComponent(file.name)));
-            console.log("Base64 编码结果:", encodedFilename);
-
+            
+            // 立即改变按钮状态
+            setUploadButtonState(true);
+            
             try {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                // Base64 编码文件名
+                const encodedFilename = btoa(unescape(encodeURIComponent(file.name)));
+                
                 const response = await fetch(`${config.backendUrl}/upload`, {
                     method: 'POST',
                     headers: {
                         'StorageType': storageType,
-                        'FileName': encodedFilename // 使用 Base64 编码
+                        'FileName': encodedFilename
                     },
-                    body: file
+                    body: formData
                 });
 
                 if (response.ok) {
+                    showStatus('文件上传成功！', true);
                     location.reload();
                 } else {
-                    alert(`上传失败: ${response.status}`);
+                    showStatus(`上传失败: ${response.status}`, false);
                 }
             } catch (error) {
                 console.error('上传错误:', error);
-                alert('网络连接失败');
+                showStatus('网络连接失败', false);
+            } finally {
+                // 恢复按钮状态
+                setTimeout(() => {
+                    setUploadButtonState(false);
+                }, 1500);
             }
         }
 
