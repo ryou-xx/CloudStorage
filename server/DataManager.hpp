@@ -2,6 +2,7 @@
 #include <pthread.h>
 #include <unordered_map>
 #include <unordered_set>
+#include <ctime>
 #include "Config.hpp"
 
 namespace storage{
@@ -267,7 +268,7 @@ namespace storage{
             return login_manager;
         }
 
-        const std::unordered_set<string> GetAllIp() 
+        const std::unordered_map<string, time_t> GetAllIp() 
         { 
             pthread_rwlock_rdlock(&rwlock_);
             auto ret = ip_register_;
@@ -286,7 +287,7 @@ namespace storage{
         void Login(const string &ip)
         {
             pthread_rwlock_wrlock(&rwlock_);
-            ip_register_.insert(ip);
+            ip_register_[ip] = time(nullptr);
             pthread_rwlock_unlock(&rwlock_);
         }
 
@@ -297,11 +298,28 @@ namespace storage{
             pthread_rwlock_unlock(&rwlock_);
         }
 
+        void UpdateLoginTime(const string ip)
+        {
+            if (ip_register_.find(ip) == ip_register_.end()) return;
+            pthread_rwlock_wrlock(&rwlock_);
+            ip_register_[ip] = time(nullptr);
+            pthread_rwlock_unlock(&rwlock_);
+        }
+
+        // 清理掉最后登录时间超过一天的IP信息
+        void UpdateRegister()
+        {
+            time_t now = time(nullptr);
+            for (auto it = ip_register_.begin(); it != ip_register_.end();)
+            {
+                if ((now - it->second) > 60 * 60 *24) ip_register_.erase(it->first);
+            }
+        }
     private:
         LoginManager(){ pthread_rwlock_init(&rwlock_, nullptr); }
         ~LoginManager() { pthread_rwlock_destroy(&rwlock_); }
     private:
-        std::unordered_set<string> ip_register_;    // 用于记录服务器启动以来登录过的IP地址
+        std::unordered_map<string, time_t> ip_register_;    // 用于记录服务器启动以来登录过的IP地址及其登录时间
         pthread_rwlock_t rwlock_;
     };
 }

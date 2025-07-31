@@ -73,21 +73,29 @@ namespace storage{
             path = UrlDecode(path); // 解码
             mylog::GetLogger("asynclogger")->Info("get req, uri_path: %s", path.c_str());
 
-            if (path.find("/download") != string::npos) Download(req, args);
-            else if (path == "/upload") Upload(req, args);
-            else if (path.find("/delete") != string::npos) Delete(req, args);
-            else if (path == "/login") LogIn(req, args);
-            else if (path == "/")
+            char *client_ip;
+            uint16_t client_port;
+            evhttp_connection_get_peer(evhttp_request_get_connection(req), &client_ip, &client_port);
+            LoginManager::GetLoginManager().UpdateRegister();
+            if (LoginManager::GetLoginManager().CheckLoggedIn(client_ip))
             {
-                char *client_ip;
-                uint16_t client_port;
-                evhttp_connection_get_peer(evhttp_request_get_connection(req), &client_ip, &client_port);
-                if (LoginManager::GetLoginManager().CheckLoggedIn(client_ip))
-                    ListShow(req, args);
+                if (path.find("/download") != string::npos) Download(req, args);
+                else if (path == "/upload") Upload(req, args);
+                else if (path.find("/delete") != string::npos) Delete(req, args);
+                else if (path == "/")
+                {      
+                    // LoginManager::GetLoginManager().UpdateLoginTime(client_ip);
+                    ListShow(req, args);    
+                }
+                else evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
+            }
+            else
+            {
+                if (path == "/login") 
+                    LogIn(req, args);
                 else
                     LoginPage(req, args);
             }
-            else evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
         }
 
         static void LogIn(evhttp_request *req, void *args)
