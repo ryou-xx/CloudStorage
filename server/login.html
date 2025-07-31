@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --background: #f5f6fa;
+            --card-bg: #ffffff;
+            --success: #2ecc71;
+            --error: #e74c3c;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--background);
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary-color);
+            margin-bottom: 2rem;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            text-align: center;
+            color: black;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .login-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: var(--card-bg);
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;            /* 使表单占满容器宽度 */
+            max-width: 300px;        /* 设置最大宽度避免过宽 */
+        }
+
+        input[type="password"], 
+        button[type="submit"] {
+            width: 100%;            /* 元素宽度占满表单容器 */
+            margin: 5px 0;          /* 上下保留间隔 */
+            padding: 12px;
+        }
+
+        button[type="submit"] {
+            margin-top: 15px;       /* 增加按钮上方间距 */
+            background: var(--primary-color);
+            color: white;
+            border: none;           /* 去除按钮默认边框 */
+            border-radius: 5px;
+            cursor: pointer;        /* 鼠标悬停时显示手指指针 */
+            transition: all 0.3s ease;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>☁异步日志云存储系统</h1>
+        <div class="login-section" >
+            <h2>请输入密码</h2>
+            <form action="/login" method="post">
+                <input type="password" id="password" name="password" maxlength="12" required>
+                <button type="submit">登录</button>
+            </form>
+        </div>
+    </div>
+</body>

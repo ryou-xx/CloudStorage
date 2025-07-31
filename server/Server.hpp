@@ -76,8 +76,71 @@ namespace storage{
             if (path.find("/download") != string::npos) Download(req, args);
             else if (path == "/upload") Upload(req, args);
             else if (path.find("/delete") != string::npos) Delete(req, args);
-            else if (path == "/") ListShow(req, args);
+            else if (path == "/login") LogIn(req, args);
+            else if (path == "/")
+            {
+                char *client_ip;
+                uint16_t client_port;
+                evhttp_connection_get_peer(evhttp_request_get_connection(req), &client_ip, &client_port);
+                if (LoginManager::GetLoginManager().CheckLoggedIn(client_ip))
+                    ListShow(req, args);
+                else
+                    LoginPage(req, args);
+            }
             else evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
+        }
+
+        static void LogIn(evhttp_request *req, void *args)
+        {
+            char *client_ip;
+            uint16_t client_port;
+            string buf(128, 0);
+            
+            evhttp_connection_get_peer(evhttp_request_get_connection(req), &client_ip, &client_port);
+
+            evbuffer *input_buf = evhttp_request_get_input_buffer(req);
+            size_t copied = evbuffer_copyout(input_buf, &buf[0], buf.size());
+            size_t prefix_len = string("password=").size(); 
+            if (copied == 0 || copied <= prefix_len || buf.substr(0,prefix_len) != "password=") 
+            {
+                mylog::GetLogger("asynclogger")->Info("login request format error");
+                evhttp_send_error(req, HTTP_BADREQUEST, "request format error");
+                return;
+            }
+            buf.resize(copied);           
+            if (Config::GetConfigData().GetPassword() != buf.substr(prefix_len))
+            {
+                mylog::GetLogger("asynclogger")->Info("wrong password, client IP: %s", client_ip);
+                evhttp_send_error(req, HTTP_BADREQUEST, "wrong password");
+                return;
+            }
+
+            LoginManager::GetLoginManager().Login(client_ip);
+            ListShow(req, args);
+        }
+
+        static void LoginPage(evhttp_request *req, void *args)
+        {
+            if (!FileUtil("./login.html").Exists())
+            {
+                mylog::GetLogger("asynclogger")->Error("login.html not exist!");
+                evhttp_send_error(req, HTTP_INTERNAL, "server error");
+                return;
+            }
+
+            int fd = open("login.html", O_RDONLY);
+            if (fd == -1)
+            {
+                mylog::GetLogger("asynclogger")->Error("login.html open failed");
+                evhttp_send_error(req, HTTP_INTERNAL, "server error");
+                return;
+            }
+
+            evbuffer *output_buf = evhttp_request_get_output_buffer(req);
+            evbuffer_add_file(output_buf, fd, 0, FileUtil("./login.html").FileSize());
+            evhttp_add_header(evhttp_request_get_output_headers(req), "Content-Type", "text/html;charset=utf-8");
+            evhttp_send_reply(req, HTTP_OK, nullptr, nullptr);
+            mylog::GetLogger("asynclogger")->Info("login page show");
         }
 
         static void Upload(evhttp_request *req, void *args)

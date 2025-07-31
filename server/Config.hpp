@@ -33,6 +33,7 @@ namespace storage{
             storage_info_file_ = val["storage_info_file"].asString();
             bundle_format_ = val["bundle_format"].asInt();
             temporary_files_dir_ = val["temporary_files_dir"].asString();
+            password_ = val["password"].asString();
             return true;
         }
 
@@ -49,6 +50,8 @@ namespace storage{
         string GetTemporaryFileDir() { return temporary_files_dir_; }
 
         string GetStorageInfoFile() { return storage_info_file_; }
+
+        string GetPassword() { return password_; }
 
         int GetBundleFormat() { return bundle_format_; }
 
@@ -73,6 +76,7 @@ namespace storage{
     private:
         int server_port_;
         string server_ip_;
+        string password_;
         string download_prefix_;
         string deep_storage_dir_;
         string low_storage_dir_;

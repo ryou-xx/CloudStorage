@@ -1,6 +1,7 @@
 #pragma once
 #include <pthread.h>
 #include <unordered_map>
+#include <unordered_set>
 #include "Config.hpp"
 
 namespace storage{
@@ -84,7 +85,9 @@ namespace storage{
         
         bool Insert(const StorageInfo &info)
         {
+#ifdef DEBUG
             mylog::GetLogger("asynclogger")->Info("data information insert start");
+#endif
             pthread_rwlock_wrlock(&rwlock_);
             table_[info.url_] = info;
             pthread_rwlock_unlock(&rwlock_);
@@ -95,8 +98,9 @@ namespace storage{
                 mylog::GetLogger("asynclogger")->Error("data information Storage after Insert error");
                 return false;
             }
-
+#ifdef DEBUG
             mylog::GetLogger("asynclogger")->Info("data information insert completed");
+#endif
             return true;
         }
 
@@ -254,4 +258,50 @@ namespace storage{
         std::unordered_map<string, StorageInfo> table_;
         bool need_persist_;                                 // 用于避免在初始化的使用调用Insert重复将刚读取到的信息写入文件中
     }; // class DataManager
+
+    class LoginManager{
+    public:
+        static LoginManager& GetLoginManager()
+        {
+            static LoginManager login_manager;
+            return login_manager;
+        }
+
+        const std::unordered_set<string> GetAllIp() 
+        { 
+            pthread_rwlock_rdlock(&rwlock_);
+            auto ret = ip_register_;
+            pthread_rwlock_unlock(&rwlock_);
+            return ip_register_;
+        }
+
+        bool CheckLoggedIn(const string &ip) 
+        { 
+            pthread_rwlock_rdlock(&rwlock_);
+            bool ret = ip_register_.find(ip) != ip_register_.end();
+            pthread_rwlock_unlock(&rwlock_);
+            return ret;
+        }
+
+        void Login(const string &ip)
+        {
+            pthread_rwlock_wrlock(&rwlock_);
+            ip_register_.insert(ip);
+            pthread_rwlock_unlock(&rwlock_);
+        }
+
+        void LogOut(const string &ip)
+        {
+            pthread_rwlock_wrlock(&rwlock_);
+            ip_register_.erase(ip);
+            pthread_rwlock_unlock(&rwlock_);
+        }
+
+    private:
+        LoginManager(){ pthread_rwlock_init(&rwlock_, nullptr); }
+        ~LoginManager() { pthread_rwlock_destroy(&rwlock_); }
+    private:
+        std::unordered_set<string> ip_register_;    // 用于记录服务器启动以来登录过的IP地址
+        pthread_rwlock_t rwlock_;
+    };
 }
