@@ -73,6 +73,7 @@ namespace storage{
             path = UrlDecode(path); // 解码
             mylog::GetLogger("asynclogger")->Info("get req, uri_path: %s", path.c_str());
 
+
             char *client_ip;
             uint16_t client_port;
             evhttp_connection_get_peer(evhttp_request_get_connection(req), &client_ip, &client_port);
@@ -80,13 +81,10 @@ namespace storage{
             if (LoginManager::GetLoginManager().CheckLoggedIn(client_ip))
             {
                 if (path.find("/download") != string::npos) Download(req, args);
-                else if (path == "/upload") Upload(req, args);
                 else if (path.find("/delete") != string::npos) Delete(req, args);
-                else if (path == "/")
-                {      
-                    // LoginManager::GetLoginManager().UpdateLoginTime(client_ip);
-                    ListShow(req, args);    
-                }
+                else if (path == "/upload") Upload(req, args);
+                else if (path == "/logOut") LogOut(req, args, client_ip);
+                else if (path == "/")  ListShow(req, args);    
                 else evhttp_send_error(req, HTTP_NOTFOUND, "Not Found");
             }
             else
@@ -96,6 +94,13 @@ namespace storage{
                 else
                     LoginPage(req, args);
             }
+        }
+
+        static void LogOut(evhttp_request *req, void *args, const char *client_ip)
+        {
+            LoginManager::GetLoginManager().LogOut(client_ip);
+            mylog::GetLogger("asynclogger")->Info("IP: %s log out", client_ip);
+            LoginPage(req, args);
         }
 
         static void LogIn(evhttp_request *req, void *args)
@@ -112,19 +117,22 @@ namespace storage{
             if (copied == 0 || copied <= prefix_len || buf.substr(0,prefix_len) != "password=") 
             {
                 mylog::GetLogger("asynclogger")->Info("login request format error");
-                evhttp_send_error(req, HTTP_BADREQUEST, "request format error");
+                evhttp_send_reply(req, HTTP_BADREQUEST, "request format error",nullptr);
                 return;
             }
-            buf.resize(copied);           
+            buf.resize(copied);
+            buf = UrlDecode(buf);           
             if (Config::GetConfigData().GetPassword() != buf.substr(prefix_len))
             {
                 mylog::GetLogger("asynclogger")->Info("wrong password, client IP: %s", client_ip);
-                evhttp_send_error(req, HTTP_BADREQUEST, "wrong password");
+                evhttp_send_reply(req, HTTP_BADREQUEST, "wrong password",nullptr);
                 return;
             }
 
             LoginManager::GetLoginManager().Login(client_ip);
-            ListShow(req, args);
+            mylog::GetLogger("asynclogger")->Info("IP: %s register", client_ip);
+            evhttp_send_reply(req, HTTP_OK, "Ok", nullptr);
+            // ListShow(req, args);
         }
 
         static void LoginPage(evhttp_request *req, void *args)
@@ -203,7 +211,7 @@ namespace storage{
             dir.CreateDirectory();      // 若路径不存在，则创建路径
 
             storage_path += filename;
-#ifdef DEBUG
+#ifdef DEBUG_LOG
             mylog::GetLogger("asynclogger")->Info("storage_path: %s", storage_path.c_str());
 #endif
             FileUtil fu(storage_path);

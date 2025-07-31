@@ -86,8 +86,8 @@ namespace storage{
         
         bool Insert(const StorageInfo &info)
         {
-#ifdef DEBUG
-            mylog::GetLogger("asynclogger")->Info("data information insert start");
+#ifdef DEBUG_LOG
+            mylog::GetLogger("asynclogger")->DEBUG("data information insert start");
 #endif
             pthread_rwlock_wrlock(&rwlock_);
             table_[info.url_] = info;
@@ -99,8 +99,8 @@ namespace storage{
                 mylog::GetLogger("asynclogger")->Error("data information Storage after Insert error");
                 return false;
             }
-#ifdef DEBUG
-            mylog::GetLogger("asynclogger")->Info("data information insert completed");
+#ifdef DEBUG_LOG
+            mylog::GetLogger("asynclogger")->DEBUG("data information insert completed");
 #endif
             return true;
         }
@@ -313,6 +313,7 @@ namespace storage{
             for (auto it = ip_register_.begin(); it != ip_register_.end();)
             {
                 if ((now - it->second) > 60 * 60 *24) ip_register_.erase(it->first);
+                else it++;
             }
         }
     private:

@@ -1,9 +1,4 @@
-/* ************************************************************************
-> File Name:     test.cpp
-> Created Time:  Thu 07 Sep 2023 06:37:16 PM CST
-> Description:
- ************************************************************************/
-#define DEBUG_LOG
+// #define DEBUG_LOG
 #include "Server.hpp"
 #include <thread>
 using namespace std;
@@ -23,8 +18,6 @@ void log_system_module_init()
     Glb->BuildLoggerName("asynclogger");
     Glb->BuildLoggerFlush<mylog::RollFileFlush>("./logfile/RollFile_log",
                                               1024 * 1024);
-    // The LoggerManger has been built and is managed by members of the LoggerManger class
-    //The logger is assigned to the managed object, and the caller lands the log by invoking the singleton managed object
     mylog::LoggerManager::GetInstance().AddLogger(Glb->Build());
 }
 int main()

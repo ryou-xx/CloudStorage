@@ -134,6 +134,19 @@
             position: relative;
         }
 
+        .log-out-container {
+            display: flex;
+            justify-content: flex-end; /* 右对齐 */
+            width: 100%; /* 确保占据整行宽度 */
+            margin-top: 1rem; /* 保持原有间距 */
+        }
+
+        .log-out{
+            background: var(--error);
+            min-width: unset;
+            padding: 0.5rem 1rem;
+        }
+
         .spinner {
             width: 20px;
             height: 20px;
@@ -180,6 +193,7 @@
 
         .file-actions {
             display: flex;
+            min-width: unset;
             gap: 0.5rem;        
             align-items: center;
         }
@@ -215,6 +229,9 @@
 
 <body>
     <div class="container">
+        <div class="log-out-container">
+            <button class="log-out" onclick="window.location='/logOut'">退出</button>
+        </div>
         <h1>☁异步日志云存储系统</h1>
 
         <div class="upload-section" id="uploadSection">
