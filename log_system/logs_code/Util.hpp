@@ -17,6 +17,7 @@ namespace mylog{
 
         class File{
         public:
+            File() = delete;
             // 检查文件是否存在，存在返回1，否则返回0
             static bool Exists(const std::string& filename)
             {
@@ -34,7 +35,7 @@ namespace mylog{
 
             static void CreateDirectory(const std::string &pathname)
             {
-                if (pathname.empty()) perror("文件所给路径为空：");
+                if (pathname.empty()) perror("所给文件路径为空：");
 
                 if (!Exists(pathname))
                 {
@@ -57,11 +58,7 @@ namespace mylog{
                         }
 
                         std::string sub_path = pathname.substr(0, pos);
-                        if (sub_path == "." || sub_path == "..")
-                        {
-                            index = pos + 1;
-                            continue;
-                        }
+
                         if (Exists(sub_path))
                         {
                             index = pos + 1;
@@ -74,7 +71,7 @@ namespace mylog{
                 }
             }
             
-           int64_t FileSize(const std::string &filename)
+           static int64_t FileSize(const std::string &filename)
            {
                 struct stat st;
                 int ret = stat(filename.c_str(), &st);
@@ -86,7 +83,7 @@ namespace mylog{
                 return st.st_size;
            }
            // 获取文件内容
-           bool GetContent(std::string *content, const std::string &filename)
+           static bool GetContent(std::string *content, const std::string &filename)
            {
                 std::ifstream ifs;
                 ifs.open(filename, std::ios::binary);
@@ -108,13 +105,13 @@ namespace mylog{
                     return false;
                 }
                 ifs.close();
-
                 return true;
            }
         };// class File
 
         class JsonUtil{
         public:
+            JsonUtil() = delete;
             // 将json数据结构序列化为字符串
             static bool Serialize(const Json::Value &val, std::string *str)
             {
@@ -141,7 +138,7 @@ namespace mylog{
                     std::cerr << __FILE__ << " " << __LINE__ << " parse error " << err << std::endl;
                     return false;
                 }
-                return true; // 源码好像有错误？
+                return true;
             }
         }; // class JsonUtil
 
@@ -171,14 +168,14 @@ namespace mylog{
             JsonData()
             {
                 std::string content;
-                mylog::Util::File file;
-                if (file.GetContent(&content, "../log_system/logs_code/config.conf") == false)
+                
+                if (File::GetContent(&content, "../log_system/logs_code/config.conf") == false)
                 {
                     std::cerr << __FILE__ << " " << __LINE__ << " open config.conf failed: ";
                     perror(nullptr);
                 }
                 Json::Value root;
-                mylog::Util::JsonUtil::UnSerialize(content, &root);
+                JsonUtil::UnSerialize(content, &root);
                 buffer_size = root["buffer_size"].asInt64();
                 threadhold = root["threadhold"].asInt64();
                 linear_growth = root["linear_growth"].asInt64();

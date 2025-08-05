@@ -136,12 +136,12 @@ namespace mylog{
             filename += std::to_string(t.tm_hour);
             filename += std::to_string(t.tm_min);
             filename += std::to_string(t.tm_sec);
-            filename += '-' + std::to_string(cnt_++) + ".log";
+            filename += '-' + std::to_string(++cnt_) + ".log";
             return filename;
         }
     
     private:
-        size_t cnt_ = 1;
+        size_t cnt_ = 0;
         size_t cur_size_ = 0;
         size_t max_size_;
         std::string basename_;

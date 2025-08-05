@@ -21,7 +21,7 @@ namespace mylog{
             return true;
         }
 
-        void AddLogger(const AsyncLogger::ptr &&AsyncLogger)
+        void AddLogger(const AsyncLogger::ptr &AsyncLogger)
         {
             if (LoggerExist(AsyncLogger->Name())) return;
 

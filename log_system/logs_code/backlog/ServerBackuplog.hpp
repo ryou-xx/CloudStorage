@@ -41,7 +41,7 @@ public:
         : port_(port), func_(func){}
 
     // 创建并初始化监听socket
-    void int_service()
+    void init_service()
     {
         listen_sock_ = socket(AF_INET, SOCK_STREAM, 0);
         if (listen_sock_ == -1)
@@ -120,8 +120,7 @@ public:
         else if (r_ret > 0)
         {
             buf[r_ret] = 0;
-            std::string tmp = buf;
-            func_(client_info + tmp); // 客户端ip+端口+发送的信息
+            func_(client_info + std::string(buf)); // 客户端ip+端口+发送的信息
         }
     }
 

@@ -21,7 +21,7 @@ namespace mylog{
         {
             asyncworker = {std::make_shared<AsyncWorker>(
                 std::bind(&AsyncLogger::RealFlush, this, std::placeholders::_1),
-            type)};
+            type)}; // 就地初始化
         }
 
         virtual ~AsyncLogger() {};
@@ -103,7 +103,7 @@ namespace mylog{
             ret = nullptr;
         }
         
-    protected:
+    private:
         void serialize(LogLevel::value level, const std::string &file, size_t line, char *ret)
         {
             LogMessage msg(level, file, line, logger_name_, ret); // 初始化日志信息实例
@@ -140,11 +140,11 @@ namespace mylog{
             }
         }
 
-    protected:
+    private:
             std::mutex mtx_;
             std::string logger_name_;
             std::vector<LogFlush::ptr> flushs_; // 存放所有LogFlush的实例指针
-            mylog::AsyncWorker::ptr asyncworker;
+            AsyncWorker::ptr asyncworker;
         };// AsyncLogger
 
     // 用于创建AsyncLogger的工厂
@@ -171,9 +171,9 @@ namespace mylog{
                 flushs_.emplace_back(std::make_shared<StdoutFlush>());
             return std::make_shared<AsyncLogger>(logger_name_, flushs_, async_type_);
         }
-    protected:
+    private:
         std::string logger_name_ = "async_logger";
-        std::vector<mylog::LogFlush::ptr> flushs_;
+        std::vector<LogFlush::ptr> flushs_;
         AsyncType async_type_ = AsyncType::ASYNC_SAFE;
     };
 }// mylog

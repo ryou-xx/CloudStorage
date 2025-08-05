@@ -36,7 +36,7 @@ void backup_log(const std::string &message)
         perror("fopen error");
         assert(false);
     }
-    int write_byte = fwrite(message.c_str(), sizeof(char), message.size(), fp);
+    int write_byte = fwrite(message.c_str(), 1, message.size(), fp);
     if (write_byte != message.size())
     {
         perror("fwrite error");
@@ -56,9 +56,9 @@ int main(int argc, char* argv[])
     }
 
     uint16_t port = atoi(argv[1]);
-    std::unique_ptr<TcpServer> tcp(new TcpServer(port, backup_log));
+    std::unique_ptr<TcpServer> tcp = std::make_unique<TcpServer>(port, backup_log);
 
-    tcp->int_service();
+    tcp->init_service();
     tcp->start_service(); // 开始监听
 
     return 0;

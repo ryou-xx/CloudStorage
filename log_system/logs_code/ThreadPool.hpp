@@ -44,7 +44,8 @@ public:
         -> std::future<typename std::invoke_result_t<F,Args...>> // 自动类型推导
     {
         using return_type = typename std::invoke_result_t<F,Args...>;
-
+        // 借助packeaged_task、future和lamda把任务转换为void()函数
+        // 使用智能指针确保packaged_task的生命周期
         auto task = std::make_shared<std::packaged_task<return_type()>>(
             std::bind(std::forward<F>(f), std::forward<Args>(args)...));
         

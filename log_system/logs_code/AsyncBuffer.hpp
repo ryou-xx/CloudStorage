@@ -8,8 +8,8 @@ namespace mylog{
     class Buffer{
     protected:
         std::vector<char> buffer_;  // 缓冲区
-        size_t write_pos_;          // 生产者此时的位置
-        size_t read_pos_;           // 消费者此时的位置
+        size_t write_pos_;          // 有效数据的长度
+        size_t read_pos_;           // 已读数据的长度
 
         void ToBeEnough(size_t len)
         {
@@ -39,12 +39,6 @@ namespace mylog{
             
             std::copy(data, data + len, &buffer_[write_pos_]);
             write_pos_ += len;
-        }
-
-        char* ReadBegin(int len)
-        {
-            assert(len <= ReadableSize());
-            return &buffer_[read_pos_];
         }
 
         bool IsEmpty() { return write_pos_ == read_pos_;}

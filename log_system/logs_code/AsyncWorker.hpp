@@ -48,7 +48,7 @@ private:
         {
             {
                 std::unique_lock<std::mutex> lock(mtx_);
-                if (buffer_productor_.IsEmpty() && !stop_)
+                if (buffer_productor_.IsEmpty() && !stop_)  // C++的condition.wait自带虚假唤醒检查，所以这里不需要使用while
                 {
                     //阻塞等待productor产生数据
                     cond_consumer_.wait(lock, [&](){return stop_ || !buffer_productor_.IsEmpty();});
