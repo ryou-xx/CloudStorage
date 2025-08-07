@@ -30,8 +30,10 @@ namespace storage{
         else if (x >= '0' && x <= '9')
             y = x - '0';
         else
+        {
             std::cerr << "Hex string format error" << std::endl;
             assert(0);
+        }
         return y; 
     }
 

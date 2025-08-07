@@ -61,8 +61,8 @@ namespace storage{
                     mylog::GetLogger("asynclogger")->Debug("event_base_dispatch error");
                 }              
             }
-            if (base) event_base_free(base);
             if (httpd) evhttp_free(httpd);
+            if (base) event_base_free(base);
             return true;
         }
 
@@ -302,6 +302,7 @@ namespace storage{
         {
             mylog::GetLogger("asynclogger")->Info("Download start");
             string url_path = evhttp_uri_get_path(evhttp_request_get_evhttp_uri(req));
+            url_path = UrlDecode(url_path);
             StorageInfo file_info;
             if(!DataManager::GetDataManager().GetOneByURL(url_path, &file_info))
             {
@@ -439,6 +440,7 @@ namespace storage{
         {
             mylog::GetLogger("asynclogger")->Info("Delete start");
             string delete_path = evhttp_uri_get_path(evhttp_request_get_evhttp_uri(req));
+            delete_path = UrlDecode(delete_path);
             auto pos = delete_path.find_last_of("/");
             if (pos == string::npos)
             {
