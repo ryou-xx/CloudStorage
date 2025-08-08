@@ -73,7 +73,6 @@ namespace storage{
             path = UrlDecode(path); // 解码
             mylog::GetLogger("asynclogger")->Info("get req, uri_path: %s", path.c_str());
 
-
             char *client_ip;
             uint16_t client_port;
             evhttp_connection_get_peer(evhttp_request_get_connection(req), &client_ip, &client_port);
@@ -176,6 +175,7 @@ namespace storage{
             } catch (const std::exception& e) {
                 mylog::GetLogger("asynclogger")->Error("Failed to scan chunk directory %s: %s", 
                     temp_upload_dir.c_str(), e.what());
+                FileUtil(temp_upload_dir).RemoveDirectory();
                 return false;
             }
 
@@ -199,6 +199,7 @@ namespace storage{
             {
                 mylog::GetLogger("asynclogger")->Error("Failed to open final file for writing: %s", 
                     final_storage_path.c_str());
+                FileUtil(temp_upload_dir).RemoveDirectory();
                 return false;
             }
 
@@ -211,6 +212,7 @@ namespace storage{
                     if (!chunk_file.is_open())
                     {
                         mylog::GetLogger("asynclogger")->Error("Failed to open chunk file for reading: %s", chunk.c_str());
+                        FileUtil(temp_upload_dir).RemoveDirectory();
                         return false;
                     }
                     final_file << chunk_file.rdbuf();
@@ -223,6 +225,7 @@ namespace storage{
                 if (FileUtil(final_storage_path).Compress(chunks) == false)
                 {
                     mylog::GetLogger("asynclogger")->Error("Compress error");
+                    FileUtil(temp_upload_dir).RemoveDirectory();
                     return false;
                 }
             }
@@ -238,7 +241,7 @@ namespace storage{
             }
 
             mylog::GetLogger("asynclogger")->Info("File chunks merged successfully to %s", final_storage_path.c_str());
-            mylog::GetLogger("asynclogger")->Info("Upload file %s succussfully",filename);
+            mylog::GetLogger("asynclogger")->Info("Upload file %s succussfully",filename.c_str());
             
             return true;
         } 
@@ -290,14 +293,6 @@ namespace storage{
             }
             // mylog::GetLogger("asynclogger")->Info("evbuffer_get_length: %u", len);
 
-            string content(len,0);
-            if (-1 == evbuffer_copyout(buf, &(content[0]), len))
-            {
-                mylog::GetLogger("asynclogger")->Info("evbuffer_copyout error");
-                evhttp_send_reply(req, HTTP_INTERNAL, nullptr, nullptr);
-            }
-
-
             // 创建临时存储文件夹存储分片文件
             string temp_upload_dir = Config::GetConfigData().GetTemporaryFileDir() + upload_id;
             if (!FileUtil(temp_upload_dir).CreateDirectory())
@@ -309,21 +304,21 @@ namespace storage{
 
             // 将数据写入分片文件
             string chunk_path = temp_upload_dir + "/" + std::to_string(chunk_index) + ".part";
-            std::ofstream chunk(chunk_path, std::ios::binary);
-            if (!chunk.is_open())
+            std::ofstream chunk_file(chunk_path, std::ios::binary);
+            if (!chunk_file.is_open())
             {
                 mylog::GetLogger("asynclogger")->Error("Failed to open chunk file: %s",chunk_path);
                 evhttp_send_reply(req, HTTP_INTERNAL, "Server error", nullptr);
                 return;
             }
-            chunk.write(content.data(), len);
-            if (!chunk.good())
-            {
-                mylog::GetLogger("asynclogger")->Error("Failed to write chunk file: %s",chunk_path);
-                evhttp_send_reply(req, HTTP_INTERNAL, "Server error", nullptr);
-                return;
+
+            char buffer[8192]; // 8KB 缓冲区
+            int n_read = 0;
+            // 循环地从evbuffer中移除数据并写入文件，直到缓冲区为空
+            while ((n_read = evbuffer_remove(buf, buffer, sizeof(buffer))) > 0) {
+                chunk_file.write(buffer, n_read);
             }
-            chunk.close();
+            chunk_file.close();
 
 #ifdef DEBUG_LOG
             mylog::GetLogger("asynclogger")->Info("Saved chunk %d/%d for %s to %s", 

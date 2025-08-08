@@ -350,9 +350,6 @@
                     const end = Math.min(start + chunkSize, file.size);
                     const chunk = file.slice(start, end);
                     
-                    const formData = new FormData();
-                    formData.append('file', chunk);          
-                    
                     const response = await fetch(`${config.backendUrl}/upload`, {
                         method: 'POST',
                         headers: {
@@ -362,7 +359,7 @@
                             'Chunk-Index':chunkIndex,
                             'Total-Chunks':totalChunks
                         },
-                        body: formData
+                        body: chunk
                     });
 
                     if (!response.ok) {
