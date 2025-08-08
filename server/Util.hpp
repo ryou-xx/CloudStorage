@@ -8,6 +8,8 @@
 #include <vector>
 #include <fstream>
 #include "bundle.h"
+#include <zlib.h>
+#include <zconf.h>
 #include "Config.hpp"
 #include "jsoncpp/json/json.h"
 #include "../log_system/logs_code/MyLog.hpp"
@@ -164,22 +166,73 @@ namespace storage{
             return true;
         }
 
-        // 压缩文件
-        bool Compress(const std::string &content, int format)
+        // 流压缩文件
+        bool Compress(const std::vector<fs::path> &chunks_path)
         {
-            std::string packed = bundle::pack(format, content);
-            if (packed.size() == 0)
+            const size_t CHUNK_SIZE_ZLIB = 16384;
+
+            int ret;
+            z_stream strm;
+            unsigned char in[CHUNK_SIZE_ZLIB];
+            unsigned char out[CHUNK_SIZE_ZLIB];
+
+            strm.zalloc = Z_NULL;
+            strm.zfree = Z_NULL;
+            strm.opaque = Z_NULL;
+
+            // 初始化Zlib流
+            ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+            if (ret != Z_OK)
             {
-                mylog::GetLogger("asynclogger")->Info("filename: %s, Compress SetContent error", filename_.c_str());
+                mylog::GetLogger("asynclogger")->Error("z_stream init error");
                 return false;
             }
 
-            FileUtil f(filename_);
-            if (f.SetContent(packed.c_str(), packed.size()) == false)
+            std::ofstream final_file(filename_, std::ios::binary);
+            if (!final_file.is_open())
             {
-                mylog::GetLogger("asynclogger")->Info("filename: %s, Compress SetContent error", filename_.c_str());
+                mylog::GetLogger("asynclogger")->Error("open file %s error", filename_.c_str());
                 return false;
             }
+
+            for (auto chunk_path : chunks_path)
+            {
+                std::ifstream chunk_file(chunk_path.string());
+
+                // 持续从分片中读取数据送入压缩器
+                do{
+                    chunk_file.read((char*)in, CHUNK_SIZE_ZLIB);
+                    strm.avail_in = chunk_file.gcount(); // 获取读取的字节数
+                    strm.next_in = in; // next_in为下一个输入字节的地址
+                    if (0 == strm.avail_in) break; // 分片读取完毕
+
+                    // 处理当前数据块
+                    do{
+                        strm.avail_out = CHUNK_SIZE_ZLIB;
+                        strm.next_out = out;
+
+                        // 执行压缩， Z_NO_FLUSH: 常规压缩，Z_FINISH: 结束压缩流
+                        ret = deflate(&strm, Z_NO_FLUSH);
+                        if (ret == Z_STREAM_ERROR)
+                        {
+                            deflateEnd(&strm);
+                            mylog::GetLogger("asynclogger")->Error("deflate error");
+                            return false;
+                        }
+
+                        int have = CHUNK_SIZE_ZLIB - strm.avail_out; // 压缩的字节数
+                        if (final_file.write((char* )out, have).fail())
+                        {
+                            deflateEnd(&strm); // 释放资源
+                            mylog::GetLogger("asynclogger")->Error("final file %s write error", filename_.c_str());
+                            return false;
+                        }
+                    }while(strm.avail_out == 0);
+
+                }while(true);  
+            }
+            deflateEnd(&strm);
+            final_file.close();
             return true;
         }
 
@@ -215,6 +268,21 @@ namespace storage{
             if (Exists()) return true; 
 
             return fs::create_directories(filename_);
+        }
+
+        // 删除整个文件夹内容
+        bool RemoveDirectory()
+        {
+            if (!Exists()) return true;
+
+            try{
+                fs::remove_all(filename_);
+                return true;
+            }
+            catch(const std::exception& e){
+                mylog::GetLogger("asynclogger")->Error("Remove directory: %s error: %s", filename_.c_str(), e.what());
+                return false;
+            }
         }
 
         // 扫描指定目录中的普通文件并返回其相对路径

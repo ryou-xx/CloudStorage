@@ -159,12 +159,119 @@ namespace storage{
             mylog::GetLogger("asynclogger")->Info("login page show");
         }
 
+        static bool MergeChunksAndFinalize(string upload_id, string filename, string storage_type)
+        {
+            mylog::GetLogger("asynclogger")->Info("Starting merge for Upload-ID: %s", upload_id.c_str());
+
+            string temp_upload_dir = Config::GetConfigData().GetTemporaryFileDir() + upload_id;
+            
+            // 扫描临时目录中的所有分片文件
+            std::vector<fs::path> chunks;
+            try {
+                for (const auto& entry : fs::directory_iterator(temp_upload_dir)) {
+                    if (entry.is_regular_file() && entry.path().extension() == ".part") {
+                        chunks.push_back(entry.path());
+                    }
+                }
+            } catch (const std::exception& e) {
+                mylog::GetLogger("asynclogger")->Error("Failed to scan chunk directory %s: %s", 
+                    temp_upload_dir.c_str(), e.what());
+                return false;
+            }
+
+            // 对分片进行数字排序
+            std::sort(chunks.begin(), chunks.end(), [](const fs::path& a, const fs::path& b) {
+                return std::stoi(a.stem().string()) < std::stoi(b.stem().string());
+            });
+
+            // 确定最终存储路径
+            string final_storage_dir = (storage_type == "low") ? 
+                                       Config::GetConfigData().GetLowStorageDir() :
+                                       Config::GetConfigData().GetDeepStorageDir();
+            FileUtil(final_storage_dir).CreateDirectory();
+            string final_storage_path = final_storage_dir + filename;
+
+            // 合并所有分片到最终文件
+            // 对于压缩存储，流式压缩到目标文件中
+
+            std::ofstream final_file(final_storage_path, std::ios::binary);
+            if (!final_file.is_open())
+            {
+                mylog::GetLogger("asynclogger")->Error("Failed to open final file for writing: %s", 
+                    final_storage_path.c_str());
+                return false;
+            }
+
+            // 如果是普通存储，直接合并文件并存放到对应的路径中
+            if (storage_type == "low")
+            {
+                for (const auto& chunk : chunks)
+                {
+                    std::ifstream chunk_file(chunk, std::ios::binary);
+                    if (!chunk_file.is_open())
+                    {
+                        mylog::GetLogger("asynclogger")->Error("Failed to open chunk file for reading: %s", chunk.c_str());
+                        return false;
+                    }
+                    final_file << chunk_file.rdbuf();
+                    chunk_file.close();
+                }
+                final_file.close();
+            } 
+            else // 如果是压缩存储，使用lzib库的流式压缩
+            {
+                if (FileUtil(final_storage_path).Compress(chunks) == false)
+                {
+                    mylog::GetLogger("asynclogger")->Error("Compress error");
+                    return false;
+                }
+            }
+
+            // 清理临时文件
+            FileUtil(temp_upload_dir).RemoveDirectory();
+
+            // 更新文件信息
+            StorageInfo info;
+            if (info.NewStorageInfo(final_storage_path))
+            {
+                DataManager::GetDataManager().Insert(info);
+            }
+
+            mylog::GetLogger("asynclogger")->Info("File chunks merged successfully to %s", final_storage_path.c_str());
+            mylog::GetLogger("asynclogger")->Info("Upload file %s succussfully",filename);
+            
+            return true;
+        } 
+        
         static void Upload(evhttp_request *req, void *args)
         {
-            mylog::GetLogger("asynclogger")->Info("Upload start");
-
             // 若客户端发来的请求中包含“low_storage"，则说明请求中存在文件数据，且需要普通存储
             // 若包含“deep_storage”，则压缩后存储
+
+            /* 获取http头中携带的信息 */
+            const char* filename_c = evhttp_find_header(req->input_headers, "FileName");         
+            const char* storage_type_c = evhttp_find_header(req->input_headers, "StorageType");
+            const char* upload_id_c = evhttp_find_header(req->input_headers,"Upload-Id");
+            const char* chunk_index_c = evhttp_find_header(req->input_headers,"Chunk-Index");
+            const char* total_chunks_c = evhttp_find_header(req->input_headers,"Total-Chunks");
+
+            if (!filename_c || !storage_type_c || !upload_id_c || !chunk_index_c || !total_chunks_c)
+            {
+                mylog::GetLogger("asynclogger")->Error("Chunk upload missing required headers");
+                evhttp_send_reply(req, HTTP_BADREQUEST, "Missin chunk upload headers", nullptr);
+                return;
+            }
+
+            string filename(filename_c);
+            filename = base64_decode(filename); // 解码文件名
+            string storage_type(storage_type_c);
+            string upload_id(upload_id_c);
+            upload_id += "-" + filename;
+            int chunk_index = atoi(chunk_index_c);
+            int total_chunks = atoi(total_chunks_c);
+
+            if (chunk_index == 0)
+                mylog::GetLogger("asynclogger")->Info("Upload file %s start", filename.c_str());
 
             // 获取请求体内容
             evbuffer *buf = evhttp_request_get_input_buffer(req);
@@ -172,7 +279,7 @@ namespace storage{
             {
                 mylog::GetLogger("asynclogger")->Info("request buffer is empty");
                 return;
-            }
+            }       
 
             size_t len = evbuffer_get_length(buf); // 获取请求体大小  
             if (0 == len)
@@ -181,7 +288,7 @@ namespace storage{
                 mylog::GetLogger("asynclogger")->Info("request body is empty");
                 return;
             }
-            mylog::GetLogger("asynclogger")->Info("evbuffer_get_length: %u", len);
+            // mylog::GetLogger("asynclogger")->Info("evbuffer_get_length: %u", len);
 
             string content(len,0);
             if (-1 == evbuffer_copyout(buf, &(content[0]), len))
@@ -190,64 +297,45 @@ namespace storage{
                 evhttp_send_reply(req, HTTP_INTERNAL, nullptr, nullptr);
             }
 
-            string filename = evhttp_find_header(req->input_headers, "FileName");
-            filename = base64_decode(filename); // 解码文件名
 
-            string storage_type = evhttp_find_header(req->input_headers, "StorageType");
-
-            string storage_path;
-            if (storage_type == "low") 
-                storage_path = Config::GetConfigData().GetLowStorageDir();
-            else if (storage_type == "deep")
-                storage_path = Config::GetConfigData().GetDeepStorageDir();
-            else
+            // 创建临时存储文件夹存储分片文件
+            string temp_upload_dir = Config::GetConfigData().GetTemporaryFileDir() + upload_id;
+            if (!FileUtil(temp_upload_dir).CreateDirectory())
             {
-                mylog::GetLogger("asynclogger")->Info("StyrageType invalid");
-                evhttp_send_reply(req, HTTP_BADREQUEST, "storage type invalid",nullptr);
+                mylog::GetLogger("asynclogger")->Error("Failed to create temporary directory: %s",temp_upload_dir);
+                evhttp_send_reply(req, HTTP_INTERNAL, "Server error", nullptr);
                 return;
             }
 
-            FileUtil dir(storage_path);
-            dir.CreateDirectory();      // 若路径不存在，则创建路径
+            // 将数据写入分片文件
+            string chunk_path = temp_upload_dir + "/" + std::to_string(chunk_index) + ".part";
+            std::ofstream chunk(chunk_path, std::ios::binary);
+            if (!chunk.is_open())
+            {
+                mylog::GetLogger("asynclogger")->Error("Failed to open chunk file: %s",chunk_path);
+                evhttp_send_reply(req, HTTP_INTERNAL, "Server error", nullptr);
+                return;
+            }
+            chunk.write(content.data(), len);
+            if (!chunk.good())
+            {
+                mylog::GetLogger("asynclogger")->Error("Failed to write chunk file: %s",chunk_path);
+                evhttp_send_reply(req, HTTP_INTERNAL, "Server error", nullptr);
+                return;
+            }
+            chunk.close();
 
-            storage_path += filename;
 #ifdef DEBUG_LOG
-            mylog::GetLogger("asynclogger")->Info("storage_path: %s", storage_path.c_str());
+            mylog::GetLogger("asynclogger")->Info("Saved chunk %d/%d for %s to %s", 
+                chunk_index + 1, total_chunks, upload_id.c_str(), chunk_path.c_str());
 #endif
-            FileUtil fu(storage_path);
-            if (storage_path.find("low_storage/") != string::npos)
-            {
-                if (!fu.SetContent(content.data(), len))
-                {
-                    mylog::GetLogger("asynclogger")->Error("low storage write file failed");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "server error",nullptr);
-                    return;
-                }
-                else
-                {
-                    mylog::GetLogger("asynclogger")->Info("low_storage success");
-                }
-            }
-            else
-            {
-                if (!fu.Compress(content, Config::GetConfigData().GetBundleFormat()))
-                {
-                    mylog::GetLogger("asynclogger")->Error("deep storage compress failed");
-                    evhttp_send_reply(req, HTTP_INTERNAL, "server error",nullptr);
-                    return;
-                }
-                else
-                {
-                    mylog::GetLogger("asynclogger")->Info("deep_storage success");
-                }
-            }
-
-            StorageInfo info;
-            info.NewStorageInfo(storage_path);
-            DataManager::GetDataManager().Insert(info);
-
             evhttp_send_reply(req, HTTP_OK, "Success", nullptr);
-            mylog::GetLogger("asynclogger")->Info("upload file successfully");
+
+            if (chunk_index == total_chunks - 1)
+            {
+                // 创建文件合并线程，避免服务器阻塞
+                std::thread(MergeChunksAndFinalize, upload_id, filename, storage_type).detach();
+            }
         }
 
 

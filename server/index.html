@@ -335,29 +335,47 @@
             
             // 立即改变按钮状态
             setUploadButtonState(true);
-            
-            try {
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                // Base64 编码文件名
-                const encodedFilename = btoa(unescape(encodeURIComponent(file.name)));
-                
-                const response = await fetch(`${config.backendUrl}/upload`, {
-                    method: 'POST',
-                    headers: {
-                        'StorageType': storageType,
-                        'FileName': encodedFilename
-                    },
-                    body: formData
-                });
 
-                if (response.ok) {
-                    showStatus('文件上传成功！', true);
-                    location.reload();
-                } else {
-                    showStatus(`上传失败: ${response.status}`, false);
+            const chunkSize = 5 * 1025 * 1024; // 一次只上传5MB
+            const totalChunks = Math.ceil(file.size/ chunkSize);
+            let chunkIndex = 0;
+
+            // Base64 编码文件名
+            const encodedFilename = btoa(unescape(encodeURIComponent(file.name)));
+            const uploadId = 'upload-' + Date.now()
+            try {
+                for (chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++)
+                {
+                    const start = chunkIndex * chunkSize;
+                    const end = Math.min(start + chunkSize, file.size);
+                    const chunk = file.slice(start, end);
+                    
+                    const formData = new FormData();
+                    formData.append('file', chunk);          
+                    
+                    const response = await fetch(`${config.backendUrl}/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'StorageType': storageType,
+                            'FileName': encodedFilename,
+                            'Upload-Id':uploadId,
+                            'Chunk-Index':chunkIndex,
+                            'Total-Chunks':totalChunks
+                        },
+                        body: formData
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`分片 ${chunkIndex + 1} 上传失败: ${response.status}`);
+                        showStatus(`上传失败: ${response.status}`, false);
+                    }
+
+                    document.getElementById('buttonText').textContent = `上传中...(${chunkIndex + 1}/ ${totalChunks})`;
                 }
+
+                showStatus('文件上传成功！', true);
+                location.reload();
+                
             } catch (error) {
                 console.error('上传错误:', error);
                 showStatus('网络连接失败', false);
