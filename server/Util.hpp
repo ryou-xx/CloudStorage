@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 #include <fstream>
-#include "bundle.h"
 #include <zlib.h>
 #include <zconf.h>
 #include "Config.hpp"
@@ -236,24 +235,102 @@ namespace storage{
             return true;
         }
 
-        // 解压文件
+        // 流解压文件
         bool UnCompress(std::string &uncompress_path)
         {
-            std::string body;
-            if (!GetContent(&body))
+            const size_t CHUNK_SIZE_ZLIB = 16384;
+            std::ifstream source_file(filename_, std::ios::binary);
+            if (!source_file.is_open())
             {
-                mylog::GetLogger("asynclogger")->Info("filename: %s, uncompress get file content failed", filename_.c_str());
+                mylog::GetLogger("asynclogger")->Error("Uncompress: Can not Open source file %s", filename_);
                 return false;
             }
-            auto unpack = bundle::unpack(body);
 
-            FileUtil f(uncompress_path);
-            if (f.SetContent(unpack.c_str(), unpack.size()) == false)
+            std::ofstream dest_file(uncompress_path, std::ios::binary);
+            if (!dest_file.is_open())
             {
-                mylog::GetLogger("asynclogger")->Info("filename: %s, UnCompress write unpacked data failed error", filename_.c_str());
+                mylog::GetLogger("asynclogger")->Error("Uncompress: Can not open destination file %s", uncompress_path);
                 return false;
             }
-            return true;
+
+            int ret;
+            z_stream strm;
+            unsigned char in[CHUNK_SIZE_ZLIB];
+            unsigned char out[CHUNK_SIZE_ZLIB];
+
+            strm.zalloc = Z_NULL;
+            strm.zfree = Z_NULL;
+            strm.opaque = Z_NULL;
+            strm.avail_in = 0;
+            strm.next_in = Z_NULL;
+
+            // 初始化zlib流
+            ret = inflateInit(&strm);
+            if (ret != Z_OK)
+            {
+                mylog::GetLogger("asynclogger")->Error("Uncompress: inflateInit failed");
+                dest_file.close();
+                remove(uncompress_path.c_str());
+                return false;
+            }
+
+            // 从源文件读取数据并解压
+            do{
+                source_file.read((char*)in, CHUNK_SIZE_ZLIB);
+                if (!source_file.good())
+                {
+                    mylog::GetLogger("asynclogger")->Error("Uncompress: Failed to read data from file: %s",filename_);
+                    dest_file.close();
+                    remove(uncompress_path.c_str());
+                    return false;
+                }
+                strm.avail_in = source_file.gcount();
+                if (strm.avail_in == 0) break; // 读取完毕
+                strm.next_in = in;
+
+                // 处理当前输入缓冲区的数据
+                do{
+                    strm.avail_out = CHUNK_SIZE_ZLIB;
+                    strm.next_out = out;
+                    ret = inflate(&strm, Z_NO_FLUSH);
+                    if (ret == Z_STREAM_ERROR)
+                    {
+                        mylog::GetLogger("asynclogger")->Error("Uncompress: inflate stream error.");
+                        inflateEnd(&strm);
+                        dest_file.close();
+                        remove(uncompress_path.c_str());
+                        return false;
+                    }
+
+                    switch (ret)
+                    {
+                        case Z_NEED_DICT:
+                        case Z_DATA_ERROR:
+                        case Z_MEM_ERROR:
+                            mylog::GetLogger("asynclogger")->Error("Uncompress: inflate error %d", ret);
+                            inflateEnd(&strm);
+                            dest_file.close();
+                            remove(uncompress_path.c_str());
+                            return false;
+                    }
+
+                    int have = CHUNK_SIZE_ZLIB - strm.avail_out;
+                    if (dest_file.write((char*)out, have).fail())
+                    {
+                        inflateEnd(&strm);
+                        mylog::GetLogger("asynclogger")->Error("Uncompress: write to destination file failed.");
+                        dest_file.close();
+                        remove(uncompress_path.c_str());
+                        return false;
+                    }
+
+                }while(strm.avail_out == 0);
+
+            }while(ret != Z_STREAM_END);
+
+            inflateEnd(&strm);
+
+            return (ret == Z_STREAM_END);
         }
 
         bool Exists()
