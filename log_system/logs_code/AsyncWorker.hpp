@@ -44,23 +44,23 @@ public:
 private:
     void ThreadEntry()
     {
-        while(1)
+        while(true)
         {
+            // 仅在缓冲区交换的时候锁住缓冲区，避免在处理缓冲区数据的时候锁住生产者缓冲区导致生产者无法正常生产
             {
                 std::unique_lock<std::mutex> lock(mtx_);
-                if (buffer_productor_.IsEmpty() && !stop_)  // C++的condition.wait自带虚假唤醒检查，所以这里不需要使用while
-                {
-                    //阻塞等待productor产生数据
-                    cond_consumer_.wait(lock, [&](){return stop_ || !buffer_productor_.IsEmpty();});
-                }
+
+                //阻塞等待productor产生数据，该语句在等待条件变量时会先判断谓词的返回值，所以不需要if或while进行手动判断
+                cond_consumer_.wait(lock, [&](){return stop_ || !buffer_productor_.IsEmpty();});
+
                 buffer_productor_.Swap(buffer_consumer_);
 
-                if (async_type_ == AsyncType::ASYNC_SAFE) cond_productor_.notify_one();
-                
-                callback_(buffer_consumer_); // 处理读缓冲区中的数据
-                buffer_consumer_.Reset();
-                if (stop_ && buffer_productor_.IsEmpty()) return; // 关闭后需要把数据处理完才退出
+                if (async_type_ == AsyncType::ASYNC_SAFE) cond_productor_.notify_one();        
             }
+
+            callback_(buffer_consumer_); // 处理读缓冲区中的数据
+            buffer_consumer_.Reset();
+            if (stop_ && buffer_productor_.IsEmpty()) return; // 关闭后需要把数据处理完才退出
         }
     }
 
