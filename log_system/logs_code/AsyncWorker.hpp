@@ -17,7 +17,6 @@ using functior = std::function<void(Buffer&)>;
 class AsyncWorker{
 public:
     using ptr = std::shared_ptr<AsyncWorker>;
-    // 这里是独立创建了线程，并没有用到线程池
     AsyncWorker(const functior & cb, AsyncType async_type = AsyncType::ASYNC_SAFE)
         : async_type_(async_type), callback_(cb), stop_(false), thread_(std::thread(&AsyncWorker::ThreadEntry, this))
     {}
@@ -40,6 +39,7 @@ public:
         stop_ = true;
         cond_consumer_.notify_all();
         thread_.join();
+        if(thread_.joinable()) thread_.join(); // 等待后台线程执行完毕
     }
 private:
     void ThreadEntry()
@@ -53,14 +53,26 @@ private:
                 //阻塞等待productor产生数据，该语句在等待条件变量时会先判断谓词的返回值，所以不需要if或while进行手动判断
                 cond_consumer_.wait(lock, [&](){return stop_ || !buffer_productor_.IsEmpty();});
 
-                buffer_productor_.Swap(buffer_consumer_);
-
-                if (async_type_ == AsyncType::ASYNC_SAFE) cond_productor_.notify_one();        
+                // 只要生产者缓冲区有数据，就进行交换处理
+                if (!buffer_productor_.IsEmpty()) {
+                    buffer_productor_.Swap(buffer_consumer_);
+                    if (async_type_ == AsyncType::ASYNC_SAFE) cond_productor_.notify_one();
+                }
+                
+                // 退出条件：收到停止信号，并且生产者缓冲区已经空了
+                // stop_被设置后，不允许再有生产者数据进入
+                if (stop_ && buffer_productor_.IsEmpty()) {
+                    // 确保消费者缓冲区最后的数据也被处理
+                    if (!buffer_consumer_.IsEmpty()){
+                        callback_(buffer_consumer_);
+                        buffer_consumer_.Reset();
+                    }
+                    return; 
+                }
             }
 
             callback_(buffer_consumer_); // 处理读缓冲区中的数据
             buffer_consumer_.Reset();
-            if (stop_ && buffer_productor_.IsEmpty()) return; // 关闭后需要把数据处理完才退出
         }
     }
 

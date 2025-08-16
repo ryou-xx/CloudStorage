@@ -37,6 +37,14 @@ namespace mylog{
             return it->second;
         }
 
+        void StopAll()
+        {
+            std::unique_lock<std::mutex> lock(mtx_);
+            for (auto& pair : loggers_) {
+                pair.second->Stop(); // 调用每个日志器的Stop方法
+            }
+        }
+
         AsyncLogger::ptr DefaultLogger() { return default_logger_;}
 
         // 确保单例

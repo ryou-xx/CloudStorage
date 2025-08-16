@@ -168,12 +168,32 @@ namespace mylog{
             JsonData()
             {
                 std::string content;
-                
+
+#ifdef LOG_DEBUG
+                if (File::Exists("./config.conf") == false)
+                {
+                    std::cerr << "config.conf not exists" << std::endl;
+                    return;
+                }
+                if (File::GetContent(&content, "./config.conf") == false)
+                {
+                    std::cerr << __FILE__ << " " << __LINE__ << " open config.conf failed: ";
+                    perror(nullptr);
+                    return;
+                }
+#else
+                if (File::Exists("../log_system/logs_code/config.conf") == false)
+                {
+                    std::cerr << "config.conf not exists" << std::endl;
+                    return;
+                }
                 if (File::GetContent(&content, "../log_system/logs_code/config.conf") == false)
                 {
                     std::cerr << __FILE__ << " " << __LINE__ << " open config.conf failed: ";
                     perror(nullptr);
+                    return;
                 }
+#endif
                 Json::Value root;
                 JsonUtil::UnSerialize(content, &root);
                 buffer_size = root["buffer_size"].asInt64();

@@ -102,6 +102,11 @@ namespace mylog{
             free(ret); // 释放vasprintf申请的动态内存
             ret = nullptr;
         }
+
+        // 停止AsyncLogger的工作，释放线程池资源
+        void Stop() {
+            asyncworker->Stop();
+        }
         
     private:
         void serialize(LogLevel::value level, const std::string &file, size_t line, char *ret)
@@ -160,7 +165,6 @@ namespace mylog{
         {
             flushs_.emplace_back(LogFlushFactory::CreateLog<FlushType>(std::forward<Args>(args)...));
         }
-        // 感觉少了一个清空flushs_的成员函数
 
         AsyncLogger::ptr Build()
         {

@@ -25,4 +25,10 @@ AsyncLogger::ptr DefaultLogger()
 #define LOGWARNDEFAULT(fmt, ...) mylog::DefaultLogger()->Warn(fmt, ##__VA_ARGS__)
 #define LOGERRORDEFAULT(fmt, ...) mylog::DefaultLogger()->Error(fmt, ##__VA_ARGS__)
 #define LOGFATALDEFAULT(fmt, ...) mylog::DefaultLogger()->Fatal(fmt, ##__VA_ARGS__)
+
+// 停止所有日志器
+void StopAllLoggers()
+{
+    LoggerManager::GetInstance().StopAll();
+}
 }
