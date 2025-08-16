@@ -7,9 +7,13 @@
 #include "Manager.hpp"
 #include <iostream>
 #include <chrono>
+#include <filesystem> 
+#include <string>     
+
+namespace fs = std::filesystem;
 
 ThreadPool* tp = nullptr;
-const long long TOTAL_LOG = 100000;
+const long long TOTAL_LOG = 200000;
 
 void test() {
     int cur_size = 0;
@@ -29,11 +33,21 @@ void init_thread_pool() {
 
 int main() {
     init_thread_pool();
+
+    const std::string log_dir = "../logfile";
+    if (fs::exists(log_dir)) {
+        fs::remove_all(log_dir);
+    }
+    fs::create_directories(log_dir);
+
     std::shared_ptr<mylog::LoggerBuilder> Glb(new mylog::LoggerBuilder());
     Glb->BuildLoggerName("asynclogger");
-    Glb->BuildLoggerFlush<mylog::FileFlush>("../logfile/FileFlush.log");
-    Glb->BuildLoggerFlush<mylog::RollFileFlush>("../logfile/RollFile_log", 1024 * 1024);
+    const std::string file_flush_path = log_dir + "/FileFlush.log";
+    const std::string roll_file_base_path = log_dir + "/RollFile_log";
+    Glb->BuildLoggerFlush<mylog::FileFlush>(file_flush_path);
+    Glb->BuildLoggerFlush<mylog::RollFileFlush>(roll_file_base_path, 1024 * 1024);
     mylog::LoggerManager::GetInstance().AddLogger(Glb->Build());
+
     std::cout << "Starting test..." << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
 
@@ -52,10 +66,32 @@ int main() {
     std::chrono::duration<double> flush_elapsed = flush_end - flush_start;
     std::cout << "All logs flushed in " << flush_elapsed.count() << " seconds." << std::endl;
 
+    long long total_bytes_written = 0;
+    try {
+        // 遍历 ../logfile 目录下的所有文件
+        for (const auto& entry : fs::directory_iterator(log_dir)) {
+            if (entry.is_regular_file()) {
+                total_bytes_written += entry.file_size();
+            }
+        }
+    } catch (const fs::filesystem_error& e) {
+        std::cerr << "Error accessing log directory: " << e.what() << std::endl;
+    }
+    
     elapsed = flush_end - start_time;
-    double lps = TOTAL_LOG * 6 / elapsed.count();
-    std::cout << "Total logs: " << TOTAL_LOG << std::endl;
-    std::cout << "Logs per second (LPS): " << lps << std::endl;
+    long long total_logical_logs = TOTAL_LOG * 3; // 3个日志调用
+    double lps = total_logical_logs / elapsed.count();
+    double write_rate_mbps = (double)total_bytes_written / (1024 * 1024) / elapsed.count();
+
+    std::cout << "----------------------------------------" << std::endl;
+    std::cout << "Benchmark Results:" << std::endl;
+    std::cout << "Total logical logs: " << total_logical_logs << std::endl;
+    std::cout << "Total time elapsed: " << elapsed.count() << " seconds." << std::endl;
+    std::cout << "Logs per second (LPS): " << static_cast<long long>(lps) << std::endl;
+    std::cout << "Total data written: " << (double)total_bytes_written / (1024 * 1024) << " MB" << std::endl;
+    std::cout << "Write throughput: " << write_rate_mbps << " MB/s" << std::endl;
+    std::cout << "----------------------------------------" << std::endl;
+
 
     delete(tp);
     std::cout << "Test finished." << std::endl;

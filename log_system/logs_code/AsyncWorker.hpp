@@ -36,6 +36,7 @@ public:
 
     void Stop()
     {
+        if (stop_) return;
         stop_ = true;
         cond_consumer_.notify_all();
         thread_.join();
