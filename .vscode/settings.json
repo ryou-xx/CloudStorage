@@ -68,7 +68,8 @@
         "bitset": "cpp",
         "cinttypes": "cpp",
         "unordered_set": "cpp",
-        "filesystem": "cpp"
+        "filesystem": "cpp",
+        "cassert": "cpp"
     },
     "search.followSymlinks": false
 }

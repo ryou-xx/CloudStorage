@@ -26,6 +26,7 @@ public:
     {
         // 安全模式下，缓冲区大小固定，如果生产者队列空间不足，则会阻塞等待
         std::unique_lock<std::mutex> lock(mtx_);
+        if (stop_) return;
         if (AsyncType::ASYNC_SAFE == async_type_)
         {
             cond_productor_.wait(lock, [&](){return len <= buffer_productor_.WriteableSize();});
@@ -36,10 +37,8 @@ public:
 
     void Stop()
     {
-        if (stop_) return;
         stop_ = true;
         cond_consumer_.notify_all();
-        thread_.join();
         if(thread_.joinable()) thread_.join(); // 等待后台线程执行完毕
     }
 private:
