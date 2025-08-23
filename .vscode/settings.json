@@ -69,7 +69,8 @@
         "cinttypes": "cpp",
         "unordered_set": "cpp",
         "filesystem": "cpp",
-        "cassert": "cpp"
+        "cassert": "cpp",
+        "queue": "cpp"
     },
     "search.followSymlinks": false
 }

@@ -357,7 +357,9 @@
                             'FileName': encodedFilename,
                             'Upload-Id':uploadId,
                             'Chunk-Index':chunkIndex,
-                            'Total-Chunks':totalChunks
+                            'Total-Chunks':totalChunks,
+                            'Chunk-Size': chunkSize, // 分片大小
+                            'Total-Size': file.size   // 文件总大小
                         },
                         body: chunk
                     });

@@ -9,6 +9,7 @@
 #include <fstream>
 #include <zlib.h>
 #include <zconf.h>
+#include <fcntl.h>
 #include "Config.hpp"
 #include "jsoncpp/json/json.h"
 #include "../log_system/logs_code/MyLog.hpp"
@@ -64,6 +65,27 @@ namespace storage{
 
     public:
         FileUtil(const std::string filename) : filename_(filename){}
+
+        bool PreAllocate(size_t size)
+        {
+            if (Exists()) remove(filename_.c_str()); // 如果已存在，先删除
+            // 创建文件
+            int fd = open(filename_.c_str(), O_RDWR | O_CREAT, 0644);
+            if (fd == -1) {
+                mylog::GetLogger("asynclogger")->Error("PreAllocate: Failed to open file %s: %s", filename_.c_str(), strerror(errno));
+                return false;
+            }
+
+            // 使用fallocate预分配文件大小
+            if (fallocate(fd, 0, 0, size) != 0) {
+                mylog::GetLogger("asynclogger")->Error("PreAllocate: fallocate failed for %s: %s", filename_.c_str(), strerror(errno));
+                close(fd);
+                return false;
+            }
+
+            close(fd);
+            return true;
+        }
 
         // 获取文件大小
         int64_t FileSize()
@@ -166,7 +188,7 @@ namespace storage{
         }
 
         // 流压缩文件
-        bool Compress(const std::vector<fs::path> &chunks_path)
+        bool Compress(const std::string sorce)
         {
             const size_t CHUNK_SIZE_ZLIB = 16384;
 
@@ -194,65 +216,39 @@ namespace storage{
                 return false;
             }
 
-            for (auto chunk_path : chunks_path)
-            {
-                std::ifstream chunk_file(chunk_path.string(), std::ios::binary);
-                int flush = Z_NO_FLUSH;
-                // 持续从分片中读取数据送入压缩器
-                do{
-                    chunk_file.read((char*)in, CHUNK_SIZE_ZLIB);
-                    strm.avail_in = chunk_file.gcount(); // 获取读取的字节数
-                    strm.next_in = in; // next_in为下一个输入字节的地址
-                    if (strm.avail_in == 0)  break;
-
-                    // 处理当前数据块
-                    do{
-                        strm.avail_out = CHUNK_SIZE_ZLIB;
-                        strm.next_out = out;
-
-                        // 执行压缩
-                        ret = deflate(&strm, flush);
-                        if (ret == Z_STREAM_ERROR)
-                        {
-                            deflateEnd(&strm);
-                            mylog::GetLogger("asynclogger")->Error("deflate error");
-                            return false;
-                        }
-
-                        int have = CHUNK_SIZE_ZLIB - strm.avail_out; // 压缩的字节数
-                        if (final_file.write((char* )out, have).fail())
-                        {
-                            deflateEnd(&strm); // 释放资源
-                            mylog::GetLogger("asynclogger")->Error("final file %s write error", filename_.c_str());
-                            return false;
-                        }
-                    }while(strm.avail_out == 0);
-
-                }while(true);  
-            }
-
-            // 接触zlib流并处理残留数据
+            std::ifstream sorce_file(sorce, std::ios::binary);
+            int flush = Z_NO_FLUSH;
+            // 持续从源文件中读取数据送入压缩器
             do{
-                strm.avail_out = CHUNK_SIZE_ZLIB;
-                strm.next_out = out;
+                sorce_file.read((char*)in, CHUNK_SIZE_ZLIB);
+                strm.avail_in = sorce_file.gcount(); // 获取读取的字节数
+                strm.next_in = in; // next_in为下一个输入字节的地址
+                if (strm.avail_in == 0)  flush = Z_FINISH;
 
-                // 执行压缩
-                ret = deflate(&strm, Z_FINISH);
-                if (ret == Z_STREAM_ERROR)
-                {
-                    deflateEnd(&strm);
-                    mylog::GetLogger("asynclogger")->Error("deflate error");
-                    return false;
-                }
+                // 处理当前数据块
+                do{
+                    strm.avail_out = CHUNK_SIZE_ZLIB;
+                    strm.next_out = out;
 
-                int have = CHUNK_SIZE_ZLIB - strm.avail_out; // 压缩的字节数
-                if (final_file.write((char* )out, have).fail())
-                {
-                    deflateEnd(&strm); // 释放资源
-                    mylog::GetLogger("asynclogger")->Error("final file %s write error", filename_.c_str());
-                    return false;
-                }
-            }while(strm.avail_out == 0);
+                    // 执行压缩
+                    ret = deflate(&strm, flush);
+                    if (ret == Z_STREAM_ERROR)
+                    {
+                        deflateEnd(&strm);
+                        mylog::GetLogger("asynclogger")->Error("deflate error");
+                        return false;
+                    }
+
+                    int have = CHUNK_SIZE_ZLIB - strm.avail_out; // 压缩的字节数
+                    if (final_file.write((char* )out, have).fail())
+                    {
+                        deflateEnd(&strm); // 释放资源
+                        mylog::GetLogger("asynclogger")->Error("final file %s write error", filename_.c_str());
+                        return false;
+                    }
+                }while(strm.avail_out == 0);
+
+            }while(flush != Z_FINISH);  
 
             deflateEnd(&strm);
             final_file.close();
